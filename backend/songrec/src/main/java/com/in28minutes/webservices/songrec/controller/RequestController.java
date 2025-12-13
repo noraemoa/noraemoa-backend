@@ -4,7 +4,7 @@ import com.in28minutes.webservices.songrec.domain.Request;
 import com.in28minutes.webservices.songrec.domain.RequestTrack;
 import com.in28minutes.webservices.songrec.domain.Track;
 import com.in28minutes.webservices.songrec.dto.request.RequestCreateRequestDto;
-import com.in28minutes.webservices.songrec.dto.request.RequestResponseDto;
+import com.in28minutes.webservices.songrec.dto.response.RequestResponseDto;
 import com.in28minutes.webservices.songrec.service.RequestService;
 import com.in28minutes.webservices.songrec.service.RequestTrackService;
 import com.in28minutes.webservices.songrec.service.TrackService;
