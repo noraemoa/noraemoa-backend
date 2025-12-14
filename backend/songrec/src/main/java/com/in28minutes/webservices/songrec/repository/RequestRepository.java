@@ -9,5 +9,5 @@ import java.util.Optional;
 public interface RequestRepository extends JpaRepository<Request, Long> {
     List<Request> findAllByUserId(Long userId);
 
-    Optional<Request> findByUserIdAndId(Long userId, Long requestId);
+    Optional<Request> findByIdAndUserId(Long id, Long userId);
 }

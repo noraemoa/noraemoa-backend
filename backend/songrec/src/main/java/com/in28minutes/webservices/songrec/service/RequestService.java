@@ -7,6 +7,7 @@ import com.in28minutes.webservices.songrec.repository.RequestRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -15,6 +16,7 @@ import java.util.List;
 public class RequestService {
     private final RequestRepository requestRepository;
 
+    @Transactional
     public Request createRequest(RequestCreateRequestDto requestDto,Long userId) {
         Request request = Request.builder()
                 .userId(userId)
@@ -24,18 +26,27 @@ public class RequestService {
         return requestRepository.save(request);
     }
 
+    @Transactional
     public Request updateRequest(RequestCreateRequestDto requestDto,Long userId, Long requestId){
-        Request request = requestRepository.findByUserIdAndId(userId,requestId)
-                .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
+        Request request = getRequestByUserIdAndRequestId(userId,requestId);
         request.setTitle(requestDto.getTitle());
-        return requestRepository.save(request);
+
+        return request;
     }
 
-    public List<Request> getRequestsByUserId(Long user_id) {
-        return requestRepository.findAllByUserId(user_id);
+    @Transactional(readOnly = true)
+    public Request getRequestByUserIdAndRequestId(Long userId, Long requestId){
+        return requestRepository.findByIdAndUserId(requestId,userId)
+                .orElseThrow(()->new NotFoundException("해당 요청을 찾을 수 없습니다."));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Request> getRequestsByUserId(Long userId) {
+        return requestRepository.findAllByUserId(userId);
     }
 
     public Request getRequestById(Long id) {
-        return requestRepository.findById(id).orElseThrow(()->new NotFoundException("해당 요청을 찾을 수 없습니다."));
+        return requestRepository.findById(id)
+                .orElseThrow(()->new NotFoundException("해당 요청을 찾을 수 없습니다."));
     }
 }
