@@ -25,5 +25,4 @@ public class RequestTrack {
     @ManyToOne(optional = false)
     @JoinColumn(name = "track_id",nullable = false)
     private Track track;
-
 }
