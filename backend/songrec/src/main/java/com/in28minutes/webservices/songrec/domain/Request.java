@@ -5,6 +5,8 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "requests")
 @Builder
@@ -28,9 +30,9 @@ public class Request {
 
     @Column(name = "created_at", updatable = false)
     @CreationTimestamp
-    private String createdAt;
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     @UpdateTimestamp
-    private String updatedAt;
+    private LocalDateTime updatedAt;
 }
