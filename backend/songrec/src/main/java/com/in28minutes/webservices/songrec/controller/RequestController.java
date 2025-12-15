@@ -25,12 +25,13 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @Validated
+@RequestMapping("/users/{userId}/requests")
 public class RequestController {
     private final RequestService requestService;
     private final RequestTrackService requestTrackService;
     private final TrackService trackService;
 
-    @PostMapping("/users/{userId}/requests")
+    @PostMapping
     public ResponseEntity<RequestResponseDto> createRequest(
             @Valid @RequestBody RequestCreateRequestDto requestDto,
             @PathVariable @NotNull @Positive Long userId) {
@@ -38,7 +39,7 @@ public class RequestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(RequestResponseDto.from(request));
     }
 
-    @PatchMapping("/users/{userId}/requests/{requestId}")
+    @PatchMapping("/{requestId}")
     public RequestResponseDto updateRequest(@Valid @RequestBody RequestCreateRequestDto requestDto,
                                             @PathVariable @NotNull @Positive Long userId,
                                             @PathVariable @NotNull @Positive Long requestId) {
@@ -46,7 +47,7 @@ public class RequestController {
         return RequestResponseDto.from(request);
     }
 
-    @GetMapping("/users/{userId}/requests")
+    @GetMapping
     public List<RequestResponseDto> getRequests(@PathVariable @NotNull @Positive Long userId) {
         List<Request> requestList =  requestService.getRequestsByUserId(userId);
         return requestList
@@ -54,7 +55,7 @@ public class RequestController {
                 .toList();
     }
 
-    @GetMapping("/users/{userId}/requests/{requestId}/tracks")
+    @GetMapping("/{requestId}/tracks")
     public List<TrackResponseDto> getTracksByRequest(@PathVariable @NotNull @Positive Long userId, @PathVariable @NotNull @Positive Long requestId) {
         List<Track> trackList = requestTrackService.getTracksByRequest(userId,requestId);
         return trackList
@@ -62,7 +63,7 @@ public class RequestController {
                 .toList();
     }
 
-    @PostMapping("/users/{userId}/requests/{requestId}/tracks/{trackId}")
+    @PostMapping("/{requestId}/tracks/{trackId}")
     public ResponseEntity<RequestTrackResponseDto> addTrackByRequest(
             @PathVariable @NotNull @Positive Long userId,
             @PathVariable @NotNull @Positive Long requestId,

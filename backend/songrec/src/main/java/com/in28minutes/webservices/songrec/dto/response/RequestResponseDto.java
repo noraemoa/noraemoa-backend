@@ -14,7 +14,7 @@ public class RequestResponseDto {
     public static RequestResponseDto from(Request request){
         return RequestResponseDto.builder()
                 .id(request.getId())
-                .userId(request.getUserId())
+                .userId(request.getUser().getId())
                 .title(request.getTitle())
                 .build();
     }
