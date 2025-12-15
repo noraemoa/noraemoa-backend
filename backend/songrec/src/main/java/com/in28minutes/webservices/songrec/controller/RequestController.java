@@ -29,7 +29,6 @@ import java.util.List;
 public class RequestController {
     private final RequestService requestService;
     private final RequestTrackService requestTrackService;
-    private final TrackService trackService;
 
     @PostMapping
     public ResponseEntity<RequestResponseDto> createRequest(
@@ -55,8 +54,18 @@ public class RequestController {
                 .toList();
     }
 
+    @DeleteMapping("/{requestId}")
+    public ResponseEntity<Void> deleteRequest(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long requestId){
+        requestService.deleteRequest(userId,requestId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{requestId}/tracks")
-    public List<TrackResponseDto> getTracksByRequest(@PathVariable @NotNull @Positive Long userId, @PathVariable @NotNull @Positive Long requestId) {
+    public List<TrackResponseDto> getTracksByRequest(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long requestId) {
         List<Track> trackList = requestTrackService.getTracksByRequest(userId,requestId);
         return trackList
                 .stream().map(TrackResponseDto::from)
@@ -70,5 +79,15 @@ public class RequestController {
             @PathVariable @NotNull @Positive Long trackId) {
         RequestTrack rt=  requestTrackService.addTrackByRequest(userId,requestId,trackId);
         return ResponseEntity.status(HttpStatus.CREATED).body(RequestTrackResponseDto.from(rt));
+    }
+
+    @DeleteMapping("/{requestId}/tracks/{trackId}")
+    public ResponseEntity<Void> deleteTrackByRequest(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long requestId,
+            @PathVariable @NotNull @Positive Long trackId) {
+
+        requestTrackService.deleteTrack(userId,requestId,trackId);
+        return ResponseEntity.noContent().build();
     }
 }

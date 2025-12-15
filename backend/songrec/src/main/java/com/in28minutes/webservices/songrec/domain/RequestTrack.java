@@ -25,4 +25,8 @@ public class RequestTrack {
     @ManyToOne(optional = false)
     @JoinColumn(name = "track_id",nullable = false)
     private Track track;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean trackDeleted = false;
 }
