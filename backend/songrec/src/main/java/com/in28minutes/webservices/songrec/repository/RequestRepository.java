@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface RequestRepository extends JpaRepository<Request, Long> {
-    List<Request> findAllByUserId(Long userId);
+    List<Request> findAllByUserIdAndDeletedFalse(Long userId);
 
-    Optional<Request> findByIdAndUserId(Long id, Long userId);
+    Optional<Request> findByIdAndUserIdAndDeletedFalse(Long id, Long userId);
 }

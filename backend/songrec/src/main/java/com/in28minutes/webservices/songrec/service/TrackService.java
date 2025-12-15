@@ -1,8 +1,10 @@
 package com.in28minutes.webservices.songrec.service;
 
+import com.in28minutes.webservices.songrec.domain.RequestTrack;
 import com.in28minutes.webservices.songrec.domain.Track;
 import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
+import com.in28minutes.webservices.songrec.repository.RequestTrackRepository;
 import com.in28minutes.webservices.songrec.repository.TrackRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TrackService {
     private final TrackRepository trackRepository;
+    private final RequestTrackRepository requestTrackRepository;
 
 
     @Transactional
@@ -28,10 +31,12 @@ public class TrackService {
                 .orElseGet(()->trackRepository.save(track));
     }
 
+    @Transactional(readOnly = true)
     public List<Track> getAllTracks() {
         return trackRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public Track getTrackById(Long id) {
         return trackRepository.findById(id)
                 .orElseThrow(()-> new NotFoundException("해당 트랙을 찾을 수 없습니다."));

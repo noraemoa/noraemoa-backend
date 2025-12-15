@@ -17,6 +17,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Transactional(readOnly = true)
     public User getUserById(Long id) {
         return userRepository.findById(id).orElseThrow(()-> new NotFoundException("해당 사용자를 찾을 수 없습니다."));
     }
@@ -42,9 +43,5 @@ public class UserService {
         User user = getUserById(userId);
         user.setPassword(passwordEncoder.encode(userDto.getPassword()));
         return user;
-    }
-
-    public boolean existUser(Long userId) {
-        return userRepository.existsById(userId);
     }
 }
