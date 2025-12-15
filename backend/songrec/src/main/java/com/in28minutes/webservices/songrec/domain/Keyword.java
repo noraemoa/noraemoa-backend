@@ -20,7 +20,7 @@ public class Keyword {
     private String normalizedText;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "canonical_id")
-    private Keyword canonicalId;
+    @JoinColumn(name = "canonical")
+    private Keyword canonical;
 
 }
