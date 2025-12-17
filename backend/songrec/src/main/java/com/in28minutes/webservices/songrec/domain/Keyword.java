@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "keyword")
+@Table(name = "keywords")
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -14,13 +14,13 @@ public class Keyword {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "raw_text")
+    @Column(name = "raw_text",nullable = false)
     private String rawText;
-    @Column(name = "normalized_text")
+    @Column(name = "normalized_text",nullable = false,unique = true)
     private String normalizedText;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "canonical")
+    @JoinColumn(name = "canonical_id")
     private Keyword canonical;
 
 }

@@ -1,15 +1,9 @@
 package com.in28minutes.webservices.songrec.controller;
 
-import com.in28minutes.webservices.songrec.domain.Request;
-import com.in28minutes.webservices.songrec.domain.RequestTrack;
-import com.in28minutes.webservices.songrec.domain.Track;
+import com.in28minutes.webservices.songrec.domain.*;
 import com.in28minutes.webservices.songrec.dto.request.RequestCreateRequestDto;
-import com.in28minutes.webservices.songrec.dto.response.RequestResponseDto;
-import com.in28minutes.webservices.songrec.dto.response.RequestTrackResponseDto;
-import com.in28minutes.webservices.songrec.dto.response.TrackResponseDto;
-import com.in28minutes.webservices.songrec.service.RequestService;
-import com.in28minutes.webservices.songrec.service.RequestTrackService;
-import com.in28minutes.webservices.songrec.service.TrackService;
+import com.in28minutes.webservices.songrec.dto.response.*;
+import com.in28minutes.webservices.songrec.service.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -29,13 +23,17 @@ import java.util.List;
 public class RequestController {
     private final RequestService requestService;
     private final RequestTrackService requestTrackService;
+    private final RequestKeywordService requestKeywordService;
 
+    // requests
     @PostMapping
     public ResponseEntity<RequestResponseDto> createRequest(
             @Valid @RequestBody RequestCreateRequestDto requestDto,
             @PathVariable @NotNull @Positive Long userId) {
         Request request = requestService.createRequest(requestDto,userId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(RequestResponseDto.from(request));
+        List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(userId, request.getId())
+                .stream().map(KeywordResponseDto::from).toList();
+        return ResponseEntity.status(HttpStatus.CREATED).body(RequestResponseDto.from(request,keywords));
     }
 
     @PatchMapping("/{requestId}")
@@ -43,15 +41,28 @@ public class RequestController {
                                             @PathVariable @NotNull @Positive Long userId,
                                             @PathVariable @NotNull @Positive Long requestId) {
         Request request = requestService.updateRequest(requestDto,userId,requestId);
-        return RequestResponseDto.from(request);
+        List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(userId, requestId)
+                .stream().map(KeywordResponseDto::from).toList();
+        return RequestResponseDto.from(request,keywords);
     }
 
     @GetMapping
-    public List<RequestResponseDto> getRequests(@PathVariable @NotNull @Positive Long userId) {
+    public List<RequestSummaryResponseDto> getRequests(@PathVariable @NotNull @Positive Long userId) {
         List<Request> requestList =  requestService.getRequestsByUserId(userId);
-        return requestList
-                .stream().map(RequestResponseDto::from)
-                .toList();
+
+        return requestList.stream().map(RequestSummaryResponseDto::from).toList();
+    }
+
+    @GetMapping("/{requestId}")
+    public RequestResponseDto getRequest(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long requestId){
+
+        Request request = requestService.getActiveRequest(userId,requestId);
+        List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(userId, request.getId())
+                .stream().map(KeywordResponseDto::from).toList();
+
+        return RequestResponseDto.from(request,keywords);
     }
 
     @DeleteMapping("/{requestId}")
@@ -62,6 +73,7 @@ public class RequestController {
         return ResponseEntity.noContent().build();
     }
 
+    // tracks
     @GetMapping("/{requestId}/tracks")
     public List<TrackResponseDto> getTracksByRequest(
             @PathVariable @NotNull @Positive Long userId,
@@ -89,5 +101,25 @@ public class RequestController {
 
         requestTrackService.deleteTrack(userId,requestId,trackId);
         return ResponseEntity.noContent().build();
+    }
+
+    //keywords
+    @PostMapping("/{requestId}/keywords/{keywordId}")
+    public ResponseEntity<RequestKeywordResponseDto> addKeywordByRequest(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long requestId,
+            @PathVariable @NotNull @Positive Long keywordId) {
+        RequestKeyword rk=  requestKeywordService.addKeywordByRequest(userId,requestId,keywordId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(RequestKeywordResponseDto.from(rk));
+    }
+
+    @GetMapping("/{requestId}/keywords")
+    public List<KeywordResponseDto> getKeywordsByRequest(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long requestId) {
+        List<Keyword> keywordsList = requestKeywordService.getKeywordsByRequest(userId,requestId);
+        return keywordsList
+                .stream().map(KeywordResponseDto::from)
+                .toList();
     }
 }
