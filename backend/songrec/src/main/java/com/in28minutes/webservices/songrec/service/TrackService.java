@@ -37,7 +37,7 @@ public class TrackService {
     }
 
     @Transactional(readOnly = true)
-    public Track getTrackById(Long id) {
+    public Track getTrack(Long id) {
         return trackRepository.findById(id)
                 .orElseThrow(()-> new NotFoundException("해당 트랙을 찾을 수 없습니다."));
     }
