@@ -37,4 +37,9 @@ public class RequestKeywordService {
                                 .keyword(keyword).build()
                 ));
     }
+
+    @Transactional
+    public void deleteKeywordByRequestId(Long requestId,Long keywordId) {
+        requestKeywordRepository.deleteByRequest_idAndKeyword_Id(requestId,keywordId);
+    }
 }

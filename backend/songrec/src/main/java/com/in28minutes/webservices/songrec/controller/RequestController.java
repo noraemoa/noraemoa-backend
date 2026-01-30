@@ -8,22 +8,30 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.rmi.server.LogStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
+
+import static java.rmi.server.LogStream.log;
 
 @RestController
 @RequiredArgsConstructor
 @Validated
 @RequestMapping("/users/{userId}/requests")
 public class RequestController {
+    private static final Logger log = LoggerFactory.getLogger(RequestController.class);
     private final RequestService requestService;
     private final RequestTrackService requestTrackService;
     private final RequestKeywordService requestKeywordService;
+    private final KeywordTrackService keywordTrackService;
 
     // requests
     @PostMapping
@@ -90,6 +98,12 @@ public class RequestController {
             @PathVariable @NotNull @Positive Long requestId,
             @PathVariable @NotNull @Positive Long trackId) {
         RequestTrack rt=  requestTrackService.addTrackByRequest(userId,requestId,trackId);
+
+        // 해당 request의 keyword들과 이 track을 각각 연결 시키기 (해당 track을 고용 바구니에도 추가하는 작업)
+        List<Keyword> keywords = requestKeywordService.getKeywordsByRequest(userId, requestId);
+        keywords.forEach(keyword->{
+            keywordTrackService.addTrackByKeyword(keyword.getId(),trackId);
+        });
         return ResponseEntity.status(HttpStatus.CREATED).body(RequestTrackResponseDto.from(rt));
     }
 
@@ -110,6 +124,12 @@ public class RequestController {
             @PathVariable @NotNull @Positive Long requestId,
             @PathVariable @NotNull @Positive Long keywordId) {
         RequestKeyword rk=  requestKeywordService.addKeywordByRequest(userId,requestId,keywordId);
+        // 키워드를 추가했을 때 키워드와 연결된 track을 해당 request track에 추가
+        List<Track> tracks = keywordTrackService.getTracksByKeyword(keywordId);
+
+        tracks.forEach(
+                track -> requestTrackService.addTrackByRequest(userId, requestId, track.getId()));
+
         return ResponseEntity.status(HttpStatus.CREATED).body(RequestKeywordResponseDto.from(rk));
     }
 
@@ -121,5 +141,13 @@ public class RequestController {
         return keywordsList
                 .stream().map(KeywordResponseDto::from)
                 .toList();
+    }
+
+    @DeleteMapping("/{requestId}/keywords/{keywordId}")
+    public ResponseEntity<Void> deleteKeywordByRequest(
+            @PathVariable @NotNull @Positive Long requestId,
+            @PathVariable @NotNull @Positive Long keywordId){
+        requestKeywordService.deleteKeywordByRequestId(requestId,keywordId);
+        return ResponseEntity.noContent().build();
     }
 }

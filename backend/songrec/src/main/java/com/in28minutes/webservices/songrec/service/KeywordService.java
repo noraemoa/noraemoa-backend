@@ -40,4 +40,8 @@ public class KeywordService {
         return keywordRepository.findById(keywordId)
                 .orElseThrow(()->new NotFoundException("해당 키워드를 찾을 수 없습니다."));
     }
+
+    public List<Keyword> getAllKeywords(){
+        return keywordRepository.findAll();
+    }
 }

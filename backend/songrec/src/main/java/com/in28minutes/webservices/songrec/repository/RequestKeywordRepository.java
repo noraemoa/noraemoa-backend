@@ -17,4 +17,5 @@ where rk.request.id = :requestId
 """)
     List<Keyword> findAllKeywordsByRequestId(@Param("requestId") Long requestId);
     Optional<RequestKeyword> findByRequest_IdAndKeyword_Id(Long requestId, Long keywordId);
+    void deleteByRequest_idAndKeyword_Id(Long requestId, Long keywordId);
 }

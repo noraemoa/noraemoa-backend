@@ -8,6 +8,5 @@ import java.util.Optional;
 
 public interface RequestRepository extends JpaRepository<Request, Long> {
     List<Request> findAllByUserIdAndDeletedFalse(Long userId);
-
     Optional<Request> findByIdAndUserIdAndDeletedFalse(Long id, Long userId);
 }

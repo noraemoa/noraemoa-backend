@@ -28,12 +28,17 @@ public class RequestTrackService {
     @Transactional
     public RequestTrack addTrackByRequest(Long userId, Long requestId, Long trackId) {
         Request request = requestService.getActiveRequest(userId, requestId);
-        Track track = trackService.getTrackById(trackId);
+        Track track = trackService.getTrack(trackId);
 
-        RequestTrack requestTrack = RequestTrack.builder()
-                                .request(request)
-                                .track(track).build();
-        return requestTrackRepository.save(requestTrack);
+        return requestTrackRepository.findByRequest_IdAndTrack_Id(requestId, trackId)
+                .map(existing-> {
+                    if(Boolean.TRUE.equals(existing.getTrackDeleted()))
+                        existing.setTrackDeleted(false); return existing;})
+                .orElseGet(()-> requestTrackRepository.save(
+                        RequestTrack.builder()
+                        .request(request)
+                        .track(track)
+                        .trackDeleted(false).build()));
     }
 
     @Transactional
