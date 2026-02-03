@@ -1,6 +1,7 @@
 package com.in28minutes.webservices.songrec.controller;
 
 import com.in28minutes.webservices.songrec.domain.Keyword;
+import com.in28minutes.webservices.songrec.domain.KeywordTrack;
 import com.in28minutes.webservices.songrec.domain.Track;
 import com.in28minutes.webservices.songrec.dto.request.KeywordCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.KeywordResponseDto;
@@ -47,8 +48,10 @@ public class KeywordController {
     public ResponseEntity<KeywordTrackResponseDto> addTrackByKeyword(
             @PathVariable @NotNull @Positive Long keywordId,
             @PathVariable @NotNull @Positive Long trackId){
+        keywordTrackService.addTrackByKeyword(keywordId, trackId);
         KeywordTrackResponseDto keywordTrack = KeywordTrackResponseDto.from(
-                keywordTrackService.addTrackByKeyword(keywordId, trackId));
+                keywordTrackService.recommendTrack(keywordId,trackId));
+
         return ResponseEntity.status(HttpStatus.CREATED).body(keywordTrack);
     }
 
@@ -56,5 +59,14 @@ public class KeywordController {
     public List<TrackResponseDto> getTrackByKeyword(@PathVariable Long keywordId){
         List<Track> tracksList = keywordTrackService.getTracksByKeyword(keywordId);
         return tracksList.stream().map(TrackResponseDto::from).toList();
+    }
+
+    @GetMapping("/keywords/{keywordId}/tracks/{trackId}/recommend")
+    public KeywordTrackResponseDto getTrackRecommendCount(
+            @PathVariable @NotNull @Positive Long keywordId,
+            @PathVariable @NotNull @Positive Long trackId
+    ){
+        KeywordTrack kt = keywordTrackService.getKeywordTrack(keywordId,trackId);
+        return KeywordTrackResponseDto.from(kt);
     }
 }

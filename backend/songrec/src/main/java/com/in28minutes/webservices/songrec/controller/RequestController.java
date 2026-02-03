@@ -7,9 +7,11 @@ import com.in28minutes.webservices.songrec.service.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -92,6 +94,28 @@ public class RequestController {
                 .toList();
     }
 
+    @PostMapping("/{requestId}/tracks/recommendations")
+    public ResponseEntity<RecommendedTracksResponseDto> addRecommendedTracksToRequest(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long requestId,
+            @RequestParam(defaultValue = "0") @PositiveOrZero int page,
+            @RequestParam(defaultValue = "3") @Positive int size
+    ){
+        Slice<Track> slice = keywordTrackService.getRecommendedTracks(requestId,page,size);
+        log.info("recommended trackIds={}", slice.getContent().stream().map(Track::getId).toList());
+        List<Track> tracks = slice.getContent();
+        tracks.forEach(track -> {
+            requestTrackService.addTrackByRequest(userId,requestId,track.getId());
+        });
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                RecommendedTracksResponseDto.builder()
+                        .tracks(tracks.stream().map(TrackResponseDto::from).toList())
+                        .hasNext(slice.hasNext())
+                        .nextPage(slice.hasNext()?page+1:page)
+                        .build()
+        );
+    }
+
     @PostMapping("/{requestId}/tracks/{trackId}")
     public ResponseEntity<RequestTrackResponseDto> addTrackByRequest(
             @PathVariable @NotNull @Positive Long userId,
@@ -103,6 +127,7 @@ public class RequestController {
         List<Keyword> keywords = requestKeywordService.getKeywordsByRequest(userId, requestId);
         keywords.forEach(keyword->{
             keywordTrackService.addTrackByKeyword(keyword.getId(),trackId);
+            keywordTrackService.recommendTrack(keyword.getId(), trackId);
         });
         return ResponseEntity.status(HttpStatus.CREATED).body(RequestTrackResponseDto.from(rt));
     }
@@ -125,10 +150,10 @@ public class RequestController {
             @PathVariable @NotNull @Positive Long keywordId) {
         RequestKeyword rk=  requestKeywordService.addKeywordByRequest(userId,requestId,keywordId);
         // 키워드를 추가했을 때 키워드와 연결된 track을 해당 request track에 추가
-        List<Track> tracks = keywordTrackService.getTracksByKeyword(keywordId);
-
-        tracks.forEach(
-                track -> requestTrackService.addTrackByRequest(userId, requestId, track.getId()));
+//        List<Track> tracks = keywordTrackService.getTracksByKeyword(keywordId);
+//
+//        tracks.forEach(
+//                track -> requestTrackService.addTrackByRequest(userId, requestId, track.getId()));
 
         return ResponseEntity.status(HttpStatus.CREATED).body(RequestKeywordResponseDto.from(rk));
     }

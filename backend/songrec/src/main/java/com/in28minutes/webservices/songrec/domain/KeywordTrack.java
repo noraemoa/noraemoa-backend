@@ -26,4 +26,13 @@ public class KeywordTrack {
     @JoinColumn(name = "keyword_id", nullable = false)
     private Keyword keyword;
 
+    // 카운트가 올라가는 경로:
+    // 1. 노래를 재생하는 중 키워드를 선택했을 때.
+    // 2. 사용자가 본인 request에 노래를 직접 입력했을 때.
+    @Builder.Default
+    private Integer recommendCount=0;
+
+    private Integer ratingCount;
+    private Integer ratingSum;
+    private double ratingAverage;
 }
