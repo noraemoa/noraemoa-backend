@@ -3,6 +3,7 @@ package com.in28minutes.webservices.songrec.service;
 import com.in28minutes.webservices.songrec.domain.Keyword;
 import com.in28minutes.webservices.songrec.domain.KeywordTrack;
 import com.in28minutes.webservices.songrec.domain.Track;
+import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.KeywordTrackRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -63,5 +64,23 @@ public class KeywordTrackService {
     ){
         Pageable pageable = PageRequest.of(page,size);
         return keywordTrackRepository.findTracksByKeywordExcludeRequest(requestId,pageable);
+    }
+
+    @Transactional
+    public void applyRatingDelta(Long keywordId,Long trackId,Integer oldRating, Integer newRating){
+        KeywordTrack keywordTrack = keywordTrackRepository.findByKeyword_IdAndTrack_Id(keywordId,trackId)
+                        .orElse(null);
+        if(keywordTrack == null){return;}
+        if(oldRating == null){
+            keywordTrack.setRatingCount(keywordTrack.getRatingCount() + 1);
+            keywordTrack.setRatingSum(keywordTrack.getRatingSum() + newRating);
+        }else{
+            keywordTrack.setRatingSum(keywordTrack.getRatingSum() + (newRating-oldRating));
+        }
+
+        if(keywordTrack.getRatingCount()>0)
+            keywordTrack.setRatingAverage((double) keywordTrack.getRatingSum() /keywordTrack.getRatingCount());
+        else
+            keywordTrack.setRatingAverage(0.0);
     }
 }

@@ -32,7 +32,15 @@ public class KeywordTrack {
     @Builder.Default
     private Integer recommendCount=0;
 
-    private Integer ratingCount;
-    private Integer ratingSum;
-    private double ratingAverage;
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer ratingCount=0;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer ratingSum=0;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private double ratingAverage=0.0;
 }
