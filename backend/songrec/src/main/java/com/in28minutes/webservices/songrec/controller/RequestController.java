@@ -1,26 +1,25 @@
 package com.in28minutes.webservices.songrec.controller;
 
+import com.in28minutes.webservices.songrec.application.RatingApplicationService;
 import com.in28minutes.webservices.songrec.domain.*;
 import com.in28minutes.webservices.songrec.dto.request.RequestCreateRequestDto;
+import com.in28minutes.webservices.songrec.dto.request.RequestTrackRatingRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.*;
 import com.in28minutes.webservices.songrec.service.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.rmi.server.LogStream;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
-
-import static java.rmi.server.LogStream.log;
 
 @RestController
 @RequiredArgsConstructor
@@ -32,6 +31,7 @@ public class RequestController {
     private final RequestTrackService requestTrackService;
     private final RequestKeywordService requestKeywordService;
     private final KeywordTrackService keywordTrackService;
+    private final RatingApplicationService ratingApplicationService;
 
     // requests
     @PostMapping
@@ -92,6 +92,30 @@ public class RequestController {
                 .toList();
     }
 
+    // 키워드에 해당하는 트랙들을 받아서 추천도 순으로 정렬한 후 3개씩 받아와서 요청에 해당 트랙들 저장
+    @PostMapping("/{requestId}/tracks/recommendations")
+    public ResponseEntity<RecommendedTracksResponseDto> addRecommendedTracksToRequest(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long requestId,
+            @RequestParam(defaultValue = "0") @PositiveOrZero int page,
+            @RequestParam(defaultValue = "3") @Positive int size
+    ){
+        Slice<Track> slice = keywordTrackService.getRecommendedTracks(requestId,page,size);
+        log.info("recommended trackIds={}", slice.getContent().stream().map(Track::getId).toList());
+        List<Track> tracks = slice.getContent();
+        tracks.forEach(track -> {
+            requestTrackService.addTrackByRequest(userId,requestId,track.getId());
+        });
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                RecommendedTracksResponseDto.builder()
+                        .tracks(tracks.stream().map(TrackResponseDto::from).toList())
+                        .hasNext(slice.hasNext())
+                        .nextPage(slice.hasNext()?page+1:page)
+                        .build()
+        );
+    }
+
+    //요청에 트랙 직접 추가
     @PostMapping("/{requestId}/tracks/{trackId}")
     public ResponseEntity<RequestTrackResponseDto> addTrackByRequest(
             @PathVariable @NotNull @Positive Long userId,
@@ -103,8 +127,20 @@ public class RequestController {
         List<Keyword> keywords = requestKeywordService.getKeywordsByRequest(userId, requestId);
         keywords.forEach(keyword->{
             keywordTrackService.addTrackByKeyword(keyword.getId(),trackId);
+            keywordTrackService.recommendTrack(keyword.getId(), trackId);
         });
         return ResponseEntity.status(HttpStatus.CREATED).body(RequestTrackResponseDto.from(rt));
+    }
+
+    @PutMapping("/{requestId}/tracks/{trackId}/rating")
+    public ResponseEntity<RequestTrackRatingResponseDto> rateRequestTrackRating(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long requestId,
+            @PathVariable @NotNull @Positive Long trackId,
+            @Valid @RequestBody RequestTrackRatingRequestDto ratingDto
+            ){
+        RequestTrack rt = ratingApplicationService.rateTrack(userId,requestId,trackId, ratingDto.getRating());
+        return ResponseEntity.ok(RequestTrackRatingResponseDto.from(rt));
     }
 
     @DeleteMapping("/{requestId}/tracks/{trackId}")
@@ -125,10 +161,10 @@ public class RequestController {
             @PathVariable @NotNull @Positive Long keywordId) {
         RequestKeyword rk=  requestKeywordService.addKeywordByRequest(userId,requestId,keywordId);
         // 키워드를 추가했을 때 키워드와 연결된 track을 해당 request track에 추가
-        List<Track> tracks = keywordTrackService.getTracksByKeyword(keywordId);
-
-        tracks.forEach(
-                track -> requestTrackService.addTrackByRequest(userId, requestId, track.getId()));
+//        List<Track> tracks = keywordTrackService.getTracksByKeyword(keywordId);
+//
+//        tracks.forEach(
+//                track -> requestTrackService.addTrackByRequest(userId, requestId, track.getId()));
 
         return ResponseEntity.status(HttpStatus.CREATED).body(RequestKeywordResponseDto.from(rk));
     }

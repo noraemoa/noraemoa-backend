@@ -1,6 +1,8 @@
 package com.in28minutes.webservices.songrec.domain;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.*;
 
 @Entity
@@ -29,4 +31,7 @@ public class RequestTrack {
     @Builder.Default
     @Column(nullable = false)
     private Boolean trackDeleted = false;
+
+    @Min(1) @Max(5)
+    private Integer rating;
 }

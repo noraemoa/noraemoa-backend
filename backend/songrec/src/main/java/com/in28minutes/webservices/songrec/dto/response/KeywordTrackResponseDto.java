@@ -12,12 +12,16 @@ public class KeywordTrackResponseDto {
     private Long id;
     private Long keywordId;
     private Long trackId;
+    private Integer recommendCount;
+    private Integer ratingCount;
 
     public static KeywordTrackResponseDto from(KeywordTrack keywordTrack) {
         return KeywordTrackResponseDto.builder()
                 .id(keywordTrack.getId())
                 .keywordId(keywordTrack.getKeyword().getId())
                 .trackId(keywordTrack.getTrack().getId())
+                .recommendCount(keywordTrack.getRecommendCount())
+                .ratingCount(keywordTrack.getRatingCount())
                 .build();
     }
 

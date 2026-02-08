@@ -18,6 +18,13 @@ public class RequestTrackService {
     private final TrackService trackService;
     private final RequestService requestService;
 
+    @Transactional
+    public RequestTrack getActiveRequestTrack(Long userId, Long requestId,Long trackId) {
+        requestService.getActiveRequest(userId, requestId);
+        return requestTrackRepository.findByRequest_IdAndTrack_Id(requestId,trackId)
+                .orElseThrow(()->new NotFoundException("RequestTrack not found"));
+    }
+
     @Transactional(readOnly = true)
     public List<Track> getTracksByRequest(Long userId, Long requestId) {
         requestService.getActiveRequest(userId, requestId); //userId 검증용
@@ -39,6 +46,16 @@ public class RequestTrackService {
                         .request(request)
                         .track(track)
                         .trackDeleted(false).build()));
+    }
+
+    @Transactional
+    public RequestTrack rateTrack(Long userId, Long requestId, Long trackId, Integer rating) {
+        requestService.getActiveRequest(userId, requestId);
+        RequestTrack rt= requestTrackRepository.findByRequest_IdAndTrack_Id(requestId,trackId)
+                .orElseThrow(()-> new NotFoundException("해당 요청에 트랙이 없습니다."));
+        if(rating <1 || rating > 5) throw new IllegalArgumentException("rating은 1~5");
+        rt.setRating(rating);
+        return rt;
     }
 
     @Transactional
