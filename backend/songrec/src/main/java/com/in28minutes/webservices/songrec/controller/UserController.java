@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @Validated
@@ -28,6 +30,12 @@ public class UserController {
             @Valid @RequestBody UserCreateRequestDto userDto) {
         User user = userService.createUser(userDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(UserResponseDto.from(user));
+    }
+
+    @GetMapping
+    public List<UserResponseDto> getUsers(){
+        List<User> users =userService.getUsers();
+        return users.stream().map(UserResponseDto::from).toList();
     }
 
     @GetMapping("/{userId}")
