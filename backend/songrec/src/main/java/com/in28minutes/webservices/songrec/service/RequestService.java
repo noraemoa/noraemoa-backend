@@ -10,7 +10,9 @@ import com.in28minutes.webservices.songrec.repository.RequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @Service
@@ -18,6 +20,7 @@ import java.util.List;
 public class RequestService {
     private final RequestRepository requestRepository;
     private final UserService userService;
+    private final LocalFileStorageService localFileStorageService;
 
     @Transactional
     public Request createRequest(RequestCreateRequestDto requestDto,Long userId) {
@@ -52,5 +55,17 @@ public class RequestService {
     public void deleteRequest(Long userId, Long requestId) {
         Request request = getActiveRequest(userId,requestId);
         request.setDeleted(true);
+    }
+
+    @Transactional
+    public Request uploadThumbnail(Long userId, Long requestId, MultipartFile file) throws IOException {
+        Request request = getActiveRequest(userId,requestId);
+
+        LocalFileStorageService.StoredFile stored =
+                localFileStorageService.storeRequestThumbnail(requestId,file);
+
+        request.setThumbnailKey(stored.key());
+        request.setThumbnailUrl(stored.url());
+        return request;
     }
 }

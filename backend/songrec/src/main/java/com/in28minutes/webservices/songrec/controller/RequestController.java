@@ -15,10 +15,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -185,5 +188,15 @@ public class RequestController {
             @PathVariable @NotNull @Positive Long keywordId){
         requestKeywordService.deleteKeywordByRequestId(requestId,keywordId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(value = "/{requestId}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RequestSummaryResponseDto> uploadThumbnail(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long requestId,
+            @RequestParam("file") MultipartFile file
+    ) throws IOException {
+        Request request = requestService.uploadThumbnail(userId,requestId,file);
+        return ResponseEntity.ok(RequestSummaryResponseDto.from(request));
     }
 }

@@ -25,6 +25,12 @@ public class Request {
     @Column(nullable = false, length = 500)
     private String title;
 
+    @Column(name = "thumbnail_url")
+    private String thumbnailUrl;
+
+    @Column(name="thumbnail_key")
+    private String thumbnailKey;
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean deleted = false;

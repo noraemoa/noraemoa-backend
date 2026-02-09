@@ -10,12 +10,14 @@ public class RequestSummaryResponseDto {
     private Long id;
     private Long userId;
     private String title;
+    private String thumbnailUrl;
 
     public static RequestSummaryResponseDto from(Request request){
         return RequestSummaryResponseDto.builder()
                 .id(request.getId())
                 .userId(request.getUser().getId())
                 .title(request.getTitle())
+                .thumbnailUrl(request.getThumbnailUrl())
                 .build();
     }
 }

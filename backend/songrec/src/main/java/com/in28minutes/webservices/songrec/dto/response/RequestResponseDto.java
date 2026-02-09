@@ -12,6 +12,7 @@ public class RequestResponseDto {
     private Long id;
     private Long userId;
     private String title;
+    private String thumbnailUrl;
     private List<KeywordResponseDto> keywords;
 
     public static RequestResponseDto from(Request request,List<KeywordResponseDto> keywords){
@@ -19,6 +20,7 @@ public class RequestResponseDto {
                 .id(request.getId())
                 .userId(request.getUser().getId())
                 .title(request.getTitle())
+                .thumbnailUrl(request.getThumbnailUrl())
                 .keywords(keywords)
                 .build();
     }
