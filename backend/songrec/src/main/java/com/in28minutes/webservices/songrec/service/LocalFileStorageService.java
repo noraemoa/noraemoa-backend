@@ -16,26 +16,38 @@ public class LocalFileStorageService {
     private final Path root = Paths.get("uploads"); // 프로젝트 루트/uploads
 
     public StoredFile storeRequestThumbnail(Long requestId, MultipartFile file) throws IOException {
-        // 1) 파일 타입 최소 검증
+        return storePng("requests", requestId, file);
+    }
+
+    public StoredFile storePlaylistThumbnail(Long playlistId, MultipartFile file) throws IOException {
+        return storePng("playlists", playlistId, file);
+    }
+
+    private StoredFile storePng(String dir, Long id, MultipartFile file) throws IOException {
         if (file.isEmpty()) throw new IllegalArgumentException("Empty file");
-        if (file.getContentType() == null || !file.getContentType().equals("image/png")) {
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.equalsIgnoreCase("image/png")) {
             throw new IllegalArgumentException("PNG only");
         }
 
-        // 2) 저장 경로
-        String key = "requests/" + requestId + ".png"; // DB에 넣을 key
-        Path target = root.resolve(key).normalize();   // uploads/requests/{id}.png
+        Path rootAbs = root.toAbsolutePath().normalize();
+
+        String key = dir + "/" + id + ".png";
+        Path target = rootAbs.resolve(key).normalize();
+
+        // ✅ 디렉토리 탈출 방지 (normalize만으로는 100% 아님)
+        if (!target.startsWith(rootAbs)) {
+            throw new IllegalArgumentException("Invalid path");
+        }
 
         Files.createDirectories(target.getParent());
 
-        // 3) 덮어쓰기 저장
         try (InputStream in = file.getInputStream()) {
             Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
         }
 
-        // 4) 프론트가 접근할 URL(상대경로)
         String url = "/uploads/" + key;
-
         return new StoredFile(key, url);
     }
 

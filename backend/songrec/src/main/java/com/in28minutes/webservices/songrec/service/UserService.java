@@ -18,6 +18,7 @@ import java.util.List;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PlaylistService playlistService;
 
     @Transactional(readOnly = true)
     public User getUserById(Long id) {
@@ -30,7 +31,9 @@ public class UserService {
                 .name(userDto.getName())
                 .password(passwordEncoder.encode(userDto.getPassword()))
                 .build();
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        playlistService.createBasicPlaylists(user.getId());
+        return saved;
     }
 
     @Transactional
