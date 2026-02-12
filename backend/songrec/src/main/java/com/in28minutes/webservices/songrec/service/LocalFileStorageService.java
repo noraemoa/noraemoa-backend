@@ -36,7 +36,6 @@ public class LocalFileStorageService {
         String key = dir + "/" + id + ".png";
         Path target = rootAbs.resolve(key).normalize();
 
-        // ✅ 디렉토리 탈출 방지 (normalize만으로는 100% 아님)
         if (!target.startsWith(rootAbs)) {
             throw new IllegalArgumentException("Invalid path");
         }
