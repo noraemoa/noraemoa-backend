@@ -2,6 +2,7 @@ package com.in28minutes.webservices.songrec.controller;
 
 import com.in28minutes.webservices.songrec.domain.*;
 import com.in28minutes.webservices.songrec.dto.request.PlaylistCreateRequestDto;
+import com.in28minutes.webservices.songrec.dto.request.PlaylistVisibilityRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.*;
 import com.in28minutes.webservices.songrec.service.*;
 import jakarta.validation.Valid;
@@ -45,18 +46,27 @@ public class PlaylistController {
     }
 
     @GetMapping
-    public List<PlaylistResponseDto> getPlaylists(@PathVariable @NotNull @Positive Long userId) {
+    public List<PlaylistResponseDto> getMyPlaylists(@PathVariable @NotNull @Positive Long userId) {
         List<Playlist> playlists = playlistService.getPlaylistsByUserId(userId);
 
         return playlists.stream().map(PlaylistResponseDto::from).toList();
     }
 
     @GetMapping("/{playlistId}")
-    public PlaylistResponseDto getPlaylistDetails(
+    public PlaylistResponseDto getMyPlaylistDetails(
             @PathVariable @NotNull @Positive Long userId,
             @PathVariable @NotNull @Positive Long playlistId){
 
         Playlist playlist = playlistService.getActivePlaylist(userId,playlistId);
+        return PlaylistResponseDto.from(playlist);
+    }
+
+    @PatchMapping("/{playlistId}/visibility")
+    public PlaylistResponseDto updateVisibility(
+            @PathVariable @NotNull @Positive Long userId,
+            @PathVariable @NotNull @Positive Long playlistId,
+            @RequestBody @Valid PlaylistVisibilityRequestDto dto){
+        Playlist playlist = playlistService.updateVisibility(userId,playlistId,dto.getVisibility());
         return PlaylistResponseDto.from(playlist);
     }
 

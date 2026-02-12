@@ -1,5 +1,6 @@
 package com.in28minutes.webservices.songrec.domain;
 
+import com.in28minutes.webservices.songrec.domain.playlist.PlaylistVisibility;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -39,6 +40,10 @@ public class Playlist {
 
     @Column(name="thumbnail_key")
     private String thumbnailKey;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PlaylistVisibility visibility = PlaylistVisibility.PUBLIC;
 
     @Builder.Default
     @Column(nullable = false)

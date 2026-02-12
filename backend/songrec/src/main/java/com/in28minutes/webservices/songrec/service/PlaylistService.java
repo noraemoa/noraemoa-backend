@@ -4,12 +4,15 @@ import com.in28minutes.webservices.songrec.domain.Playlist;
 import com.in28minutes.webservices.songrec.domain.PlaylistTemplate;
 import com.in28minutes.webservices.songrec.domain.Request;
 import com.in28minutes.webservices.songrec.domain.User;
+import com.in28minutes.webservices.songrec.domain.playlist.PlaylistVisibility;
 import com.in28minutes.webservices.songrec.dto.request.PlaylistCreateRequestDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.PlaylistRepository;
 import com.in28minutes.webservices.songrec.repository.PlaylistTemplateRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -56,6 +59,7 @@ public class PlaylistService {
         Playlist playlist =  Playlist.builder()
                 .user(userRef)
                 .title(playlistDto.getTitle())
+                .visibility(PlaylistVisibility.PUBLIC)
                 .deleted(false)
                 .build();
 
@@ -91,5 +95,23 @@ public class PlaylistService {
         playlist.setThumbnailKey(stored.key());
         playlist.setThumbnailUrl(stored.url());
         return playlist;
+    }
+
+    @Transactional
+    public Playlist updateVisibility(Long userId, Long playlistId, PlaylistVisibility playlistVisibility) {
+        Playlist playlist = getActivePlaylist(userId,playlistId);
+        playlist.setVisibility(playlistVisibility);
+        return playlist;
+    }
+
+    @Transactional(readOnly = true)
+    public Playlist getPublicPlaylist(Long playlistId){
+        return playlistRepository.findByIdAndVisibilityAndDeletedFalse(playlistId,PlaylistVisibility.PUBLIC)
+                .orElseThrow(()->new NotFoundException("해당 플레이리스트를 찾을 수 없습니다."));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Playlist> getPublicPlaylists(Pageable pageable) {
+        return playlistRepository.findAllByVisibilityAndDeletedFalse(PlaylistVisibility.PUBLIC, pageable);
     }
 }
