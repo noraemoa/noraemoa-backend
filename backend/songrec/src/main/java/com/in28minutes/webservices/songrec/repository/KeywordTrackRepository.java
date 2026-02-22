@@ -1,7 +1,7 @@
 package com.in28minutes.webservices.songrec.repository;
 
-import com.in28minutes.webservices.songrec.domain.KeywordTrack;
-import com.in28minutes.webservices.songrec.domain.Track;
+import com.in28minutes.webservices.songrec.domain.keyword.KeywordTrack;
+import com.in28minutes.webservices.songrec.domain.track.Track;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;

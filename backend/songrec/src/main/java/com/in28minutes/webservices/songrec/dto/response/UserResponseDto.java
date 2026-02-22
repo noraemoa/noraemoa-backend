@@ -1,6 +1,6 @@
 package com.in28minutes.webservices.songrec.dto.response;
 
-import com.in28minutes.webservices.songrec.domain.User;
+import com.in28minutes.webservices.songrec.domain.user.User;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -8,14 +8,16 @@ import lombok.Getter;
 @Getter
 public class UserResponseDto {
     private Long id;
-    private String name;
+    private String username;
+    private String email;
     private String role;
 
     public static UserResponseDto from(User user) {
         return UserResponseDto.builder()
                 .id(user.getId())
-                .name(user.getName())
-                .role(user.getRole())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole().name())
                 .build();
     }
 }

@@ -1,8 +1,7 @@
 package com.in28minutes.webservices.songrec.repository;
 
-import com.in28minutes.webservices.songrec.domain.PlaylistTrack;
-import com.in28minutes.webservices.songrec.domain.RequestTrack;
-import com.in28minutes.webservices.songrec.domain.Track;
+import com.in28minutes.webservices.songrec.domain.playlist.PlaylistTrack;
+import com.in28minutes.webservices.songrec.domain.track.Track;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

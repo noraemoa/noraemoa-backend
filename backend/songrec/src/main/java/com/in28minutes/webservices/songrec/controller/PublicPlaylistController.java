@@ -1,6 +1,6 @@
 package com.in28minutes.webservices.songrec.controller;
 
-import com.in28minutes.webservices.songrec.domain.Playlist;
+import com.in28minutes.webservices.songrec.domain.playlist.Playlist;
 import com.in28minutes.webservices.songrec.dto.response.PlaylistResponseDto;
 import com.in28minutes.webservices.songrec.service.PlaylistService;
 import jakarta.validation.constraints.NotNull;
@@ -11,7 +11,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 

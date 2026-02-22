@@ -1,6 +1,6 @@
 package com.in28minutes.webservices.songrec.repository;
 
-import com.in28minutes.webservices.songrec.domain.Request;
+import com.in28minutes.webservices.songrec.domain.request.Request;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

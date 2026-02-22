@@ -1,6 +1,6 @@
 package com.in28minutes.webservices.songrec.service;
 
-import com.in28minutes.webservices.songrec.domain.PlaylistTemplate;
+import com.in28minutes.webservices.songrec.domain.playlist.PlaylistTemplate;
 import com.in28minutes.webservices.songrec.repository.PlaylistTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

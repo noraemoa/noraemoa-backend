@@ -1,5 +1,6 @@
-package com.in28minutes.webservices.songrec.domain;
+package com.in28minutes.webservices.songrec.domain.request;
 
+import com.in28minutes.webservices.songrec.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

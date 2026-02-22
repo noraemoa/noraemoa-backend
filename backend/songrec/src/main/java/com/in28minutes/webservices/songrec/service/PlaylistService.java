@@ -1,14 +1,12 @@
 package com.in28minutes.webservices.songrec.service;
 
-import com.in28minutes.webservices.songrec.domain.Playlist;
-import com.in28minutes.webservices.songrec.domain.PlaylistTemplate;
-import com.in28minutes.webservices.songrec.domain.Request;
-import com.in28minutes.webservices.songrec.domain.User;
+import com.in28minutes.webservices.songrec.domain.playlist.Playlist;
+import com.in28minutes.webservices.songrec.domain.playlist.PlaylistTemplate;
+import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.domain.playlist.PlaylistVisibility;
 import com.in28minutes.webservices.songrec.dto.request.PlaylistCreateRequestDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.PlaylistRepository;
-import com.in28minutes.webservices.songrec.repository.PlaylistTemplateRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,7 +17,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor

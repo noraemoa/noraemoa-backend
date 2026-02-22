@@ -1,9 +1,8 @@
 package com.in28minutes.webservices.songrec.service;
 
-import com.in28minutes.webservices.songrec.domain.Keyword;
-import com.in28minutes.webservices.songrec.domain.KeywordTrack;
-import com.in28minutes.webservices.songrec.domain.Track;
-import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
+import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
+import com.in28minutes.webservices.songrec.domain.keyword.KeywordTrack;
+import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.repository.KeywordTrackRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
