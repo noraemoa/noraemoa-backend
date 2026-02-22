@@ -1,8 +1,7 @@
 package com.in28minutes.webservices.songrec.application;
 
-import com.in28minutes.webservices.songrec.domain.Keyword;
-import com.in28minutes.webservices.songrec.domain.KeywordTrack;
-import com.in28minutes.webservices.songrec.domain.RequestTrack;
+import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
+import com.in28minutes.webservices.songrec.domain.request.RequestTrack;
 import com.in28minutes.webservices.songrec.service.KeywordTrackService;
 import com.in28minutes.webservices.songrec.service.RequestKeywordService;
 import com.in28minutes.webservices.songrec.service.RequestTrackService;

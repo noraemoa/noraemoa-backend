@@ -1,7 +1,6 @@
 package com.in28minutes.webservices.songrec.repository;
 
-import com.in28minutes.webservices.songrec.domain.Playlist;
-import com.in28minutes.webservices.songrec.domain.Request;
+import com.in28minutes.webservices.songrec.domain.playlist.Playlist;
 import com.in28minutes.webservices.songrec.domain.playlist.PlaylistVisibility;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

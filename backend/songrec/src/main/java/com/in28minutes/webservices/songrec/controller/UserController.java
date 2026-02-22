@@ -1,6 +1,6 @@
 package com.in28minutes.webservices.songrec.controller;
 
-import com.in28minutes.webservices.songrec.domain.User;
+import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.dto.request.UpdateUserPasswordRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.UpdateUsernameRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.UserCreateRequestDto;
@@ -44,7 +44,7 @@ public class UserController {
         return UserResponseDto.from(user);
     }
 
-    @PatchMapping("/{userId}/name")
+    @PatchMapping("/{userId}/username")
     public UserResponseDto updateUsername(
             @Valid @RequestBody UpdateUsernameRequestDto userDto,
             @PathVariable @NotNull @Positive Long userId){

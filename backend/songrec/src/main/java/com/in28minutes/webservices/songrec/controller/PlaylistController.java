@@ -1,6 +1,8 @@
 package com.in28minutes.webservices.songrec.controller;
 
-import com.in28minutes.webservices.songrec.domain.*;
+import com.in28minutes.webservices.songrec.domain.playlist.Playlist;
+import com.in28minutes.webservices.songrec.domain.playlist.PlaylistTrack;
+import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.dto.request.PlaylistCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.PlaylistVisibilityRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.*;

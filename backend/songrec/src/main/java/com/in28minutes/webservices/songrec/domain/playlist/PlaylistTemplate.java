@@ -1,4 +1,4 @@
-package com.in28minutes.webservices.songrec.domain;
+package com.in28minutes.webservices.songrec.domain.playlist;
 
 import jakarta.persistence.*;
 import lombok.*;
