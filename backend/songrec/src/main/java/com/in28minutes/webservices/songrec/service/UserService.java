@@ -1,6 +1,6 @@
 package com.in28minutes.webservices.songrec.service;
 
-import com.in28minutes.webservices.songrec.domain.User;
+import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.dto.request.UpdateUserPasswordRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.UpdateUsernameRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.UserCreateRequestDto;
@@ -28,7 +28,8 @@ public class UserService {
     @Transactional
     public User createUser(UserCreateRequestDto userDto) {
         User user = User.builder()
-                .name(userDto.getName())
+                .username(userDto.getUsername())
+                .email(userDto.getEmail())
                 .password(passwordEncoder.encode(userDto.getPassword()))
                 .build();
         User saved = userRepository.save(user);
@@ -39,7 +40,7 @@ public class UserService {
     @Transactional
     public User updateUsername(UpdateUsernameRequestDto userDto, Long userId) {
         User user = getUserById(userId);
-        user.setName(userDto.getName());
+        user.setUsername(userDto.getUsername());
         return user;
     }
 

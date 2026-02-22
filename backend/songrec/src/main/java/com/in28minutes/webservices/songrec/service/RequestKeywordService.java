@@ -1,10 +1,9 @@
 package com.in28minutes.webservices.songrec.service;
 
-import com.in28minutes.webservices.songrec.domain.*;
-import com.in28minutes.webservices.songrec.dto.response.KeywordResponseDto;
-import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
+import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
+import com.in28minutes.webservices.songrec.domain.request.Request;
+import com.in28minutes.webservices.songrec.domain.request.RequestKeyword;
 import com.in28minutes.webservices.songrec.repository.RequestKeywordRepository;
-import com.in28minutes.webservices.songrec.repository.RequestTrackRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

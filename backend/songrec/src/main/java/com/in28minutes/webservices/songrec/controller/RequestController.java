@@ -1,7 +1,11 @@
 package com.in28minutes.webservices.songrec.controller;
 
 import com.in28minutes.webservices.songrec.application.RatingApplicationService;
-import com.in28minutes.webservices.songrec.domain.*;
+import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
+import com.in28minutes.webservices.songrec.domain.request.Request;
+import com.in28minutes.webservices.songrec.domain.request.RequestKeyword;
+import com.in28minutes.webservices.songrec.domain.request.RequestTrack;
+import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.dto.request.RequestCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.RequestTrackRatingRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.*;

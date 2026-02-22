@@ -1,7 +1,7 @@
 package com.in28minutes.webservices.songrec.repository;
 
-import com.in28minutes.webservices.songrec.domain.Keyword;
-import com.in28minutes.webservices.songrec.domain.RequestKeyword;
+import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
+import com.in28minutes.webservices.songrec.domain.request.RequestKeyword;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

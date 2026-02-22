@@ -1,8 +1,7 @@
 package com.in28minutes.webservices.songrec.service;
 
-import com.in28minutes.webservices.songrec.domain.Keyword;
+import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
 import com.in28minutes.webservices.songrec.dto.request.KeywordCreateRequestDto;
-import com.in28minutes.webservices.songrec.dto.response.KeywordResponseDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.KeywordRepository;
 import lombok.RequiredArgsConstructor;
