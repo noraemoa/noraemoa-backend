@@ -1,5 +1,6 @@
-package com.in28minutes.webservices.songrec.domain;
+package com.in28minutes.webservices.songrec.domain.request;
 
+import com.in28minutes.webservices.songrec.domain.track.Track;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

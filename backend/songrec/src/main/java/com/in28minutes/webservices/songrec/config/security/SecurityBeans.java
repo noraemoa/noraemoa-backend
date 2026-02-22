@@ -1,4 +1,4 @@
-package com.in28minutes.webservices.songrec.config;
+package com.in28minutes.webservices.songrec.config.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

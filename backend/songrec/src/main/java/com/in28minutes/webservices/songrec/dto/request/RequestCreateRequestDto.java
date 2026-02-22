@@ -1,10 +1,8 @@
 package com.in28minutes.webservices.songrec.dto.request;
 
-import com.in28minutes.webservices.songrec.domain.Request;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 

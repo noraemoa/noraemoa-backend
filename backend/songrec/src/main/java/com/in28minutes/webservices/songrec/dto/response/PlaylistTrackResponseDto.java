@@ -1,7 +1,6 @@
 package com.in28minutes.webservices.songrec.dto.response;
 
-import com.in28minutes.webservices.songrec.domain.PlaylistTrack;
-import com.in28minutes.webservices.songrec.domain.RequestTrack;
+import com.in28minutes.webservices.songrec.domain.playlist.PlaylistTrack;
 import lombok.Builder;
 import lombok.Getter;
 

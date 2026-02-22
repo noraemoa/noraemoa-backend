@@ -1,8 +1,8 @@
 package com.in28minutes.webservices.songrec.service;
 
-import com.in28minutes.webservices.songrec.domain.Request;
-import com.in28minutes.webservices.songrec.domain.RequestTrack;
-import com.in28minutes.webservices.songrec.domain.Track;
+import com.in28minutes.webservices.songrec.domain.request.Request;
+import com.in28minutes.webservices.songrec.domain.request.RequestTrack;
+import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.RequestTrackRepository;
 import lombok.RequiredArgsConstructor;

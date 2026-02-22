@@ -1,6 +1,8 @@
 package com.in28minutes.webservices.songrec.service;
 
-import com.in28minutes.webservices.songrec.domain.*;
+import com.in28minutes.webservices.songrec.domain.playlist.Playlist;
+import com.in28minutes.webservices.songrec.domain.playlist.PlaylistTrack;
+import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.PlaylistTrackRepository;
 import com.in28minutes.webservices.songrec.repository.RequestTrackRepository;

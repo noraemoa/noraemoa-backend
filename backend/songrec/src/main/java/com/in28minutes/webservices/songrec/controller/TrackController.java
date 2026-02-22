@@ -1,11 +1,10 @@
 package com.in28minutes.webservices.songrec.controller;
 
-import com.in28minutes.webservices.songrec.domain.Track;
+import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.TrackResponseDto;
 import com.in28minutes.webservices.songrec.service.TrackService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
