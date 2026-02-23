@@ -1,5 +1,6 @@
 package com.in28minutes.webservices.songrec.controller;
 
+import com.in28minutes.webservices.songrec.config.security.JwtPrincipal;
 import com.in28minutes.webservices.songrec.domain.playlist.Playlist;
 import com.in28minutes.webservices.songrec.domain.playlist.PlaylistTrack;
 import com.in28minutes.webservices.songrec.domain.track.Track;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,7 +26,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @Validated
-@RequestMapping("/users/{userId}/playlists")
+@RequestMapping("/playlists")
 public class PlaylistController {
     private final PlaylistService playlistService;
     private final PlaylistTrackService playlistTrackService;
@@ -34,58 +36,58 @@ public class PlaylistController {
     public
     ResponseEntity<PlaylistResponseDto> createPlaylist(
             @Valid @RequestBody PlaylistCreateRequestDto playlistDto,
-            @PathVariable @NotNull @Positive Long userId) {
-        Playlist playlist = playlistService.createPlaylist(userId, playlistDto);
+            @AuthenticationPrincipal JwtPrincipal principal) {
+        Playlist playlist = playlistService.createPlaylist(principal.userId(), playlistDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(PlaylistResponseDto.from(playlist));
     }
 
     @PatchMapping("/{playlistId}")
     public PlaylistResponseDto updatePlaylist(@Valid @RequestBody PlaylistCreateRequestDto playlistDto,
-                                            @PathVariable @NotNull @Positive Long userId,
+                                              @AuthenticationPrincipal JwtPrincipal principal,
                                             @PathVariable @NotNull @Positive Long playlistId) {
-        Playlist playlist = playlistService.updatePlaylist(playlistDto, userId, playlistId);
+        Playlist playlist = playlistService.updatePlaylist(playlistDto, principal.userId(), playlistId);
         return PlaylistResponseDto.from(playlist);
     }
 
     @GetMapping
-    public List<PlaylistResponseDto> getMyPlaylists(@PathVariable @NotNull @Positive Long userId) {
-        List<Playlist> playlists = playlistService.getPlaylistsByUserId(userId);
+    public List<PlaylistResponseDto> getMyPlaylists(@AuthenticationPrincipal JwtPrincipal principal) {
+        List<Playlist> playlists = playlistService.getPlaylistsByUserId(principal.userId());
 
         return playlists.stream().map(PlaylistResponseDto::from).toList();
     }
 
     @GetMapping("/{playlistId}")
-    public PlaylistResponseDto getMyPlaylistDetails(
-            @PathVariable @NotNull @Positive Long userId,
+    public PlaylistResponseDto getPlaylistDetails(
+            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long playlistId){
 
-        Playlist playlist = playlistService.getActivePlaylist(userId,playlistId);
+        Playlist playlist = playlistService.getActivePlaylist(principal.userId(), playlistId);
         return PlaylistResponseDto.from(playlist);
     }
 
     @PatchMapping("/{playlistId}/visibility")
     public PlaylistResponseDto updateVisibility(
-            @PathVariable @NotNull @Positive Long userId,
+            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long playlistId,
             @RequestBody @Valid PlaylistVisibilityRequestDto dto){
-        Playlist playlist = playlistService.updateVisibility(userId,playlistId,dto.getVisibility());
+        Playlist playlist = playlistService.updateVisibility(principal.userId(), playlistId,dto.getVisibility());
         return PlaylistResponseDto.from(playlist);
     }
 
     @DeleteMapping("/{playlistId}")
     public ResponseEntity<Void> deletePlaylist(
-            @PathVariable @NotNull @Positive Long userId,
+            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long playlistId) {
-        playlistService.deletePlaylist(userId, playlistId);
+        playlistService.deletePlaylist(principal.userId(), playlistId);
         return ResponseEntity.noContent().build();
     }
 
     // tracks
     @GetMapping("/{playlistId}/tracks")
     public List<TrackResponseDto> getTracksByPlaylist(
-            @PathVariable @NotNull @Positive Long userId,
+            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long playlistId) {
-        List<Track> trackList = playlistTrackService.getTracksByPlaylist(userId,playlistId);
+        List<Track> trackList = playlistTrackService.getTracksByPlaylist(principal.userId(), playlistId);
         return trackList
                 .stream().map(TrackResponseDto::from)
                 .toList();
@@ -93,31 +95,31 @@ public class PlaylistController {
 
     @PostMapping("/{playlistId}/tracks/{trackId}")
     public ResponseEntity<PlaylistTrackResponseDto> addTrackByPlaylist(
-            @PathVariable @NotNull @Positive Long userId,
+            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long playlistId,
             @PathVariable @NotNull @Positive Long trackId) {
-        PlaylistTrack pt=  playlistTrackService.addTrackByPlaylist(userId,playlistId,trackId);
+        PlaylistTrack pt=  playlistTrackService.addTrackByPlaylist(principal.userId(), playlistId,trackId);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(PlaylistTrackResponseDto.from(pt));
     }
 
     @DeleteMapping("/{playlistId}/tracks/{trackId}")
     public ResponseEntity<Void> deleteTrackByPlaylist(
-            @PathVariable @NotNull @Positive Long userId,
+            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long playlistId,
             @PathVariable @NotNull @Positive Long trackId) {
 
-        playlistTrackService.deleteTrack(userId,playlistId,trackId);
+        playlistTrackService.deleteTrack(principal.userId(), playlistId,trackId);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping(value = "/{playlistId}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PlaylistResponseDto> uploadThumbnail(
-            @PathVariable @NotNull @Positive Long userId,
+            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long playlistId,
             @RequestParam("file") MultipartFile file
     ) throws IOException {
-        Playlist playlist = playlistService.uploadThumbnail(userId,playlistId,file);
+        Playlist playlist = playlistService.uploadThumbnail(principal.userId(), playlistId,file);
         return ResponseEntity.ok(PlaylistResponseDto.from(playlist));
     }
 }

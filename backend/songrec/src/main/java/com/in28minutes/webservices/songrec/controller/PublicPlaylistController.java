@@ -17,16 +17,10 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @Validated
-@RequestMapping("/playlists")
+@RequestMapping("/public/playlists")
 public class PublicPlaylistController {
 
     private final PlaylistService playlistService;
-
-    @GetMapping("/{playlistId}")
-    public PlaylistResponseDto getPublicPlaylist(@PathVariable @NotNull @Positive Long playlistId){
-        Playlist playlist = playlistService.getPublicPlaylist(playlistId);
-        return PlaylistResponseDto.from(playlist);
-    }
 
     @GetMapping
     public Page<PlaylistResponseDto> getPublicPlaylists(

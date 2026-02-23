@@ -44,7 +44,7 @@ public class Playlist {
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PlaylistVisibility visibility = PlaylistVisibility.PUBLIC;
+    private PlaylistVisibility visibility = PlaylistVisibility.PRIVATE;
 
     @Builder.Default
     @Column(nullable = false)
