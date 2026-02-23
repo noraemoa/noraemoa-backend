@@ -33,8 +33,7 @@ public class PlaylistService {
         List<PlaylistTemplate> playlistTemplates = playlistTemplateService.getBasicPlaylistTemplates();
         for(PlaylistTemplate t :playlistTemplates) {
             if (!playlistRepository.existsByUser_IdAndTemplate_Id(userId, t.getId())) {
-                playlistRepository.save(Playlist
-                        .builder()
+                playlistRepository.save(Playlist.builder()
                         .user(userRef)
                         .template(t)
                         .title(t.getDisplayName())
@@ -63,10 +62,11 @@ public class PlaylistService {
         return playlistRepository.save(playlist);
     }
 
+    // 해당 사용자의 플레이리스트이거나 공개 플레이리스트
     @Transactional(readOnly = true)
     public Playlist getActivePlaylist(Long userId, Long playlistId){
-        return playlistRepository.findByIdAndUserIdAndDeletedFalse(playlistId,userId)
-                .orElseThrow(()->new NotFoundException("해당 요청을 찾을 수 없습니다."));
+        return playlistRepository.findAccessiblePlaylist(playlistId,userId)
+                .orElseThrow(()->new NotFoundException("해당 플레이리스트를 찾을 수 없습니다."));
     }
 
     @Transactional
@@ -99,12 +99,6 @@ public class PlaylistService {
         Playlist playlist = getActivePlaylist(userId,playlistId);
         playlist.setVisibility(playlistVisibility);
         return playlist;
-    }
-
-    @Transactional(readOnly = true)
-    public Playlist getPublicPlaylist(Long playlistId){
-        return playlistRepository.findByIdAndVisibilityAndDeletedFalse(playlistId,PlaylistVisibility.PUBLIC)
-                .orElseThrow(()->new NotFoundException("해당 플레이리스트를 찾을 수 없습니다."));
     }
 
     @Transactional(readOnly = true)
