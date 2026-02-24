@@ -8,6 +8,8 @@ import com.in28minutes.webservices.songrec.dto.response.LoginResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.UserResponseDto;
 import com.in28minutes.webservices.songrec.service.AuthService;
 import com.in28minutes.webservices.songrec.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,8 +30,11 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
-    public LoginResponseDto login(@Valid @RequestBody LoginRequestDto requestDto){
-        return authService.login(requestDto);
+    public LoginResponseDto login(
+            @Valid @RequestBody LoginRequestDto requestDto,
+            HttpServletResponse response
+    ){
+        return authService.login(requestDto,response);
     }
 
     @PostMapping("/signup")
@@ -37,5 +42,22 @@ public class AuthController {
             @Valid @RequestBody UserCreateRequestDto userDto) {
         User user = authService.signup(userDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(UserResponseDto.from(user));
+    }
+
+    @PostMapping("/refresh")
+    public LoginResponseDto refresh(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ){
+        return authService.refresh(request,response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ){
+        authService.logout(request,response);
+        return ResponseEntity.noContent().build();
     }
 }
