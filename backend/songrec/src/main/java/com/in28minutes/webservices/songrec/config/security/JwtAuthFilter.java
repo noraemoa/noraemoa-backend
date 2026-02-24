@@ -1,7 +1,6 @@
 package com.in28minutes.webservices.songrec.config.security;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -12,11 +11,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
 
+@Component
 public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtProvider jwtProvider;
 
@@ -44,7 +45,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         try{
-            Claims claims = jwtProvider.parseClaims(token);
+            Claims claims = jwtProvider.parseToken(token);
 
             Long userId=Long.parseLong(claims.getSubject());
             String role = String.valueOf(claims.get("role"));
