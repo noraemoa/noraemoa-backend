@@ -5,6 +5,7 @@ import com.in28minutes.webservices.songrec.domain.request.RequestTrack;
 import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.RequestTrackRepository;
+import com.in28minutes.webservices.songrec.repository.projection.RequestTrackCountRow;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,12 @@ public class RequestTrackService {
         requestService.getActiveRequest(userId, requestId); //userId 검증용
 
         return requestTrackRepository.findActiveTracksByRequestId(requestId);
+    }
+
+    @Transactional(readOnly = true)
+    public  List<RequestTrackCountRow> getTrackCountsByRequests(List<Long> requestIds) {
+
+        return requestTrackRepository.countActiveTracksByRequestIds(requestIds);
     }
 
     @Transactional

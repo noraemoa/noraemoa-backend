@@ -6,6 +6,10 @@ import com.in28minutes.webservices.songrec.dto.request.RequestCreateRequestDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.RequestRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,6 +24,7 @@ public class RequestService {
     private final UserService userService;
     private final LocalFileStorageService localFileStorageService;
 
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Request createRequest(RequestCreateRequestDto requestDto,Long userId) {
         User user = userService.getUserById(userId);
@@ -31,6 +36,7 @@ public class RequestService {
         return requestRepository.save(request);
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Request updateRequest(RequestCreateRequestDto requestDto,Long userId, Long requestId){
         Request request = getActiveRequest(userId,requestId);
@@ -45,16 +51,24 @@ public class RequestService {
     }
 
     @Transactional(readOnly = true)
+    public Page<Request> getAllRequests(int pageNumber,int pageSize){
+        Pageable pageable = PageRequest.of(pageNumber,pageSize);
+        return requestRepository.findFeed(pageable);
+    }
+
+    @Transactional(readOnly = true)
     public List<Request> getRequestsByUserId(Long userId) {
         return requestRepository.findAllByUserIdAndDeletedFalse(userId);
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public void deleteRequest(Long userId, Long requestId) {
         Request request = getActiveRequest(userId,requestId);
         request.setDeleted(true);
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Request uploadThumbnail(Long userId, Long requestId, MultipartFile file) throws IOException {
         Request request = getActiveRequest(userId,requestId);

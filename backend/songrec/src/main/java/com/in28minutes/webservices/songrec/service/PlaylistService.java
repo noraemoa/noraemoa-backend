@@ -11,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -49,6 +50,7 @@ public class PlaylistService {
         return playlistRepository.findAllByUserIdAndDeletedFalse(userId);
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Playlist createPlaylist(Long userId, PlaylistCreateRequestDto playlistDto){
         User userRef=entityManager.getReference(User.class, userId);
@@ -62,29 +64,37 @@ public class PlaylistService {
         return playlistRepository.save(playlist);
     }
 
-    // 해당 사용자의 플레이리스트이거나 공개 플레이리스트
     @Transactional(readOnly = true)
-    public Playlist getActivePlaylist(Long userId, Long playlistId){
+    public Playlist getAccessiblePlaylist(Long userId, Long playlistId){
         return playlistRepository.findAccessiblePlaylist(playlistId,userId)
                 .orElseThrow(()->new NotFoundException("해당 플레이리스트를 찾을 수 없습니다."));
     }
 
+    @Transactional(readOnly = true)
+    public Playlist getOwnedPlaylist(Long userId,Long playlistId){
+        return playlistRepository.findByIdAndUserIdAndDeletedFalse(playlistId,userId)
+                .orElseThrow(()->new NotFoundException("해당 플레이리스트를 찾을 수 없습니다."));
+    }
+
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Playlist updatePlaylist(PlaylistCreateRequestDto playlistDto, Long userId, Long playlistId) {
-        Playlist playlist = getActivePlaylist(userId,playlistId);
+        Playlist playlist = getOwnedPlaylist(userId,playlistId);
         playlist.setTitle(playlistDto.getTitle());
         return playlist;
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public void deletePlaylist(Long userId, Long playlistId) {
-        Playlist playlist = getActivePlaylist(userId,playlistId);
+        Playlist playlist = getOwnedPlaylist(userId,playlistId);
         playlist.setDeleted(true);
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Playlist uploadThumbnail(Long userId, Long playlistId, MultipartFile file) throws IOException {
-        Playlist playlist = getActivePlaylist(userId,playlistId);
+        Playlist playlist = getOwnedPlaylist(userId,playlistId);
 
         LocalFileStorageService.StoredFile stored =
                 localFileStorageService.storePlaylistThumbnail(playlistId,file);
@@ -94,9 +104,10 @@ public class PlaylistService {
         return playlist;
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Playlist updateVisibility(Long userId, Long playlistId, PlaylistVisibility playlistVisibility) {
-        Playlist playlist = getActivePlaylist(userId,playlistId);
+        Playlist playlist = getOwnedPlaylist(userId,playlistId);
         playlist.setVisibility(playlistVisibility);
         return playlist;
     }

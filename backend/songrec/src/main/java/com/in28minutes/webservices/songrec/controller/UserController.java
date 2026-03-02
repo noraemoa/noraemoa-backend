@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,19 +26,13 @@ public class UserController {
 
     private final UserService userService;
 
-    @PostMapping
-    public ResponseEntity<UserResponseDto> createUser(
-            @Valid @RequestBody UserCreateRequestDto userDto) {
-        User user = userService.createUser(userDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(UserResponseDto.from(user));
-    }
-
     @GetMapping
     public List<UserResponseDto> getUsers(){
         List<User> users =userService.getUsers();
         return users.stream().map(UserResponseDto::from).toList();
     }
 
+    // admin or 본인
     @GetMapping("/{userId}")
     public UserResponseDto getUser(@PathVariable @NotNull @Positive Long userId) {
         User user = userService.getUserById(userId);
