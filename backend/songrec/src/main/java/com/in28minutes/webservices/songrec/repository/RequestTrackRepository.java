@@ -2,6 +2,7 @@ package com.in28minutes.webservices.songrec.repository;
 
 import com.in28minutes.webservices.songrec.domain.request.RequestTrack;
 import com.in28minutes.webservices.songrec.domain.track.Track;
+import com.in28minutes.webservices.songrec.repository.projection.RequestTrackCountRow;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +18,16 @@ where rt.request.id = :requestId
   and rt.trackDeleted = false
 """)
     List<Track> findActiveTracksByRequestId(@Param("requestId") Long requestId);
-
     Optional<RequestTrack> findByRequest_IdAndTrack_Id(Long requestId, Long trackId);
+
+    @Query("""
+select
+    rt.request.id as requestId,
+    count(rt.id) as trackCount
+from RequestTrack rt
+where rt.request.id in :requestIds
+    and rt.trackDeleted=false
+group by rt.request.id
+""")
+    List<RequestTrackCountRow> countActiveTracksByRequestIds(@Param("requestIds") List<Long> requestIds);
 }

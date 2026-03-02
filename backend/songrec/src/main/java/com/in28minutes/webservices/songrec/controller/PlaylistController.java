@@ -61,7 +61,7 @@ public class PlaylistController {
             @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long playlistId){
 
-        Playlist playlist = playlistService.getActivePlaylist(principal.userId(), playlistId);
+        Playlist playlist = playlistService.getOwnedPlaylist(principal.userId(), playlistId);
         return PlaylistResponseDto.from(playlist);
     }
 
