@@ -9,7 +9,8 @@ import lombok.Getter;
 @Getter
 public class PlaylistResponseDto {
     private Long id;
-    private String userName;
+    private Long userId;
+    private String username;
     private String code;
     private String title;
     private String thumbnailUrl;
@@ -19,7 +20,8 @@ public class PlaylistResponseDto {
         String code = (playlist.getTemplate() == null)?null:playlist.getTemplate().getCode();
         return PlaylistResponseDto.builder()
                 .id(playlist.getId())
-                .userName(playlist.getUser().getUsername())
+                .userId(playlist.getUser().getId())
+                .username(playlist.getUser().getUsername())
                 .code(code)
                 .title(playlist.getTitle())
                 .thumbnailUrl(playlist.getThumbnailUrl())

@@ -11,6 +11,7 @@ import java.util.List;
 public class RequestResponseDto {
     private Long id;
     private Long userId;
+    private String username;
     private String title;
     private String thumbnailUrl;
     private List<KeywordResponseDto> keywords;
@@ -19,6 +20,7 @@ public class RequestResponseDto {
         return RequestResponseDto.builder()
                 .id(request.getId())
                 .userId(request.getUser().getId())
+                .username(request.getUser().getUsername())
                 .title(request.getTitle())
                 .thumbnailUrl(request.getThumbnailUrl())
                 .keywords(keywords)

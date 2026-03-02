@@ -7,6 +7,7 @@ import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.PlaylistTrackRepository;
 import com.in28minutes.webservices.songrec.repository.RequestTrackRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,21 +23,22 @@ public class PlaylistTrackService {
 
     @Transactional
     public PlaylistTrack getActivePlaylistTrack(Long userId, Long playlistId, Long trackId) {
-        playlistService.getActivePlaylist(userId, playlistId);
+        playlistService.getAccessiblePlaylist(userId, playlistId);
         return playlistTrackRepository.findByPlaylist_IdAndTrack_Id(playlistId,trackId)
                 .orElseThrow(()->new NotFoundException("PlaylistTrack not found"));
     }
 
     @Transactional(readOnly = true)
     public List<Track> getTracksByPlaylist(Long userId, Long playlistId) {
-        playlistService.getActivePlaylist(userId, playlistId); //userId 검증용
+        playlistService.getAccessiblePlaylist(userId, playlistId); //userId 검증용
 
         return playlistTrackRepository.findActiveTracksByPlaylistId(playlistId);
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public PlaylistTrack addTrackByPlaylist(Long userId, Long playlistId, Long trackId) {
-        Playlist playlist = playlistService.getActivePlaylist(userId, playlistId);
+        Playlist playlist = playlistService.getOwnedPlaylist(userId, playlistId);
         Track track = trackService.getTrack(trackId);
 
         return playlistTrackRepository.findByPlaylist_IdAndTrack_Id(playlistId, trackId)
@@ -50,9 +52,10 @@ public class PlaylistTrackService {
                                 .trackDeleted(false).build()));
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public void deleteTrack(Long userId,Long playlistId, Long trackId) {
-        playlistService.getActivePlaylist(userId, playlistId); //userId 검증용
+        playlistService.getOwnedPlaylist(userId, playlistId); //userId 검증용
 
         PlaylistTrack pt = playlistTrackRepository.findByPlaylist_IdAndTrack_Id(playlistId,trackId)
                 .orElseThrow(()->new NotFoundException("PlaylistTrack not found"));
