@@ -22,20 +22,18 @@ public class PlaylistTrackService {
     private final RequestTrackRepository requestTrackRepository;
 
     @Transactional
-    public PlaylistTrack getActivePlaylistTrack(Long userId, Long playlistId, Long trackId) {
-        playlistService.getAccessiblePlaylist(userId, playlistId);
+    public PlaylistTrack getActivePlaylistTrack(Long playlistId, Long trackId) {
+        playlistService.getAccessiblePlaylist( playlistId);
         return playlistTrackRepository.findByPlaylist_IdAndTrack_Id(playlistId,trackId)
                 .orElseThrow(()->new NotFoundException("PlaylistTrack not found"));
     }
 
     @Transactional(readOnly = true)
-    public List<Track> getTracksByPlaylist(Long userId, Long playlistId) {
-        playlistService.getAccessiblePlaylist(userId, playlistId); //userId 검증용
+    public List<Track> getTracksByPlaylist(Long playlistId) {
 
         return playlistTrackRepository.findActiveTracksByPlaylistId(playlistId);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public PlaylistTrack addTrackByPlaylist(Long userId, Long playlistId, Long trackId) {
         Playlist playlist = playlistService.getOwnedPlaylist(userId, playlistId);
@@ -52,7 +50,6 @@ public class PlaylistTrackService {
                                 .trackDeleted(false).build()));
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public void deleteTrack(Long userId,Long playlistId, Long trackId) {
         playlistService.getOwnedPlaylist(userId, playlistId); //userId 검증용

@@ -49,7 +49,7 @@ public class RequestController {
             @Valid @RequestBody RequestCreateRequestDto requestDto,
             @AuthenticationPrincipal JwtPrincipal principal) {
         Request request = requestService.createRequest(requestDto,principal.userId());
-        List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(principal.userId(), request.getId())
+        List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(request.getId())
                 .stream().map(KeywordResponseDto::from).toList();
         return ResponseEntity.status(HttpStatus.CREATED).body(RequestResponseDto.from(request,keywords));
     }
@@ -59,7 +59,7 @@ public class RequestController {
                                             @AuthenticationPrincipal JwtPrincipal principal,
                                             @PathVariable @NotNull @Positive Long requestId) {
         Request request = requestService.updateRequest(requestDto,principal.userId(),requestId);
-        List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(principal.userId(), requestId)
+        List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(requestId)
                 .stream().map(KeywordResponseDto::from).toList();
         return RequestResponseDto.from(request,keywords);
     }
@@ -76,13 +76,24 @@ public class RequestController {
         return requestList.stream().map(RequestSummaryResponseDto::from).toList();
     }
 
-    @GetMapping("/{requestId}")
-    public RequestResponseDto getRequest(
+    @GetMapping("/me/{requestId}")
+    public RequestResponseDto getMyRequest(
             @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long requestId){
 
         Request request = requestService.getActiveRequest(principal.userId(),requestId);
-        List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(principal.userId(), request.getId())
+        List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(request.getId())
+                .stream().map(KeywordResponseDto::from).toList();
+
+        return RequestResponseDto.from(request,keywords);
+    }
+
+    @GetMapping("/{requestId}")
+    public RequestResponseDto getRequestFeed(
+            @PathVariable @NotNull @Positive Long requestId){
+
+        Request request = requestService.getRequestFeed(requestId);
+        List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(request.getId())
                 .stream().map(KeywordResponseDto::from).toList();
 
         return RequestResponseDto.from(request,keywords);
@@ -99,9 +110,8 @@ public class RequestController {
     // tracks
     @GetMapping("/{requestId}/tracks")
     public List<TrackResponseDto> getTracksByRequest(
-            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long requestId) {
-        List<Track> trackList = requestTrackService.getTracksByRequest(principal.userId(), requestId);
+        List<Track> trackList = requestTrackService.getTracksByRequest(requestId);
         return trackList
                 .stream().map(TrackResponseDto::from)
                 .toList();
@@ -136,7 +146,7 @@ public class RequestController {
         RequestTrack rt=  requestTrackService.addTrackByRequest(principal.userId(), requestId,trackId);
 
         // 해당 request의 keyword들과 이 track을 각각 연결 시키기 (해당 track을 고용 바구니에도 추가하는 작업)
-        List<Keyword> keywords = requestKeywordService.getKeywordsByRequest(principal.userId(), requestId);
+        List<Keyword> keywords = requestKeywordService.getKeywordsByRequest(requestId);
         keywords.forEach(keyword->{
             keywordTrackService.addTrackByKeyword(keyword.getId(),trackId);
             keywordTrackService.recommendTrack(keyword.getId(), trackId);
@@ -185,7 +195,7 @@ public class RequestController {
     public List<KeywordResponseDto> getKeywordsByRequest(
             @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long requestId) {
-        List<Keyword> keywordsList = requestKeywordService.getKeywordsByRequest(principal.userId(), requestId);
+        List<Keyword> keywordsList = requestKeywordService.getKeywordsByRequest(requestId);
         return keywordsList
                 .stream().map(KeywordResponseDto::from)
                 .toList();

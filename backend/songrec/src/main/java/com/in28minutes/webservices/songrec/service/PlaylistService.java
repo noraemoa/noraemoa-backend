@@ -50,7 +50,6 @@ public class PlaylistService {
         return playlistRepository.findAllByUserIdAndDeletedFalse(userId);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Playlist createPlaylist(Long userId, PlaylistCreateRequestDto playlistDto){
         User userRef=entityManager.getReference(User.class, userId);
@@ -65,8 +64,8 @@ public class PlaylistService {
     }
 
     @Transactional(readOnly = true)
-    public Playlist getAccessiblePlaylist(Long userId, Long playlistId){
-        return playlistRepository.findAccessiblePlaylist(playlistId,userId)
+    public Playlist getAccessiblePlaylist(Long playlistId){
+        return playlistRepository.findByIdAndDeletedFalse(playlistId)
                 .orElseThrow(()->new NotFoundException("해당 플레이리스트를 찾을 수 없습니다."));
     }
 
@@ -76,7 +75,6 @@ public class PlaylistService {
                 .orElseThrow(()->new NotFoundException("해당 플레이리스트를 찾을 수 없습니다."));
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Playlist updatePlaylist(PlaylistCreateRequestDto playlistDto, Long userId, Long playlistId) {
         Playlist playlist = getOwnedPlaylist(userId,playlistId);
@@ -84,14 +82,12 @@ public class PlaylistService {
         return playlist;
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public void deletePlaylist(Long userId, Long playlistId) {
         Playlist playlist = getOwnedPlaylist(userId,playlistId);
         playlist.setDeleted(true);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Playlist uploadThumbnail(Long userId, Long playlistId, MultipartFile file) throws IOException {
         Playlist playlist = getOwnedPlaylist(userId,playlistId);
@@ -104,7 +100,6 @@ public class PlaylistService {
         return playlist;
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Playlist updateVisibility(Long userId, Long playlistId, PlaylistVisibility playlistVisibility) {
         Playlist playlist = getOwnedPlaylist(userId,playlistId);

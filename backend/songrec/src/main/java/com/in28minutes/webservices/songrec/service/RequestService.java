@@ -24,7 +24,6 @@ public class RequestService {
     private final UserService userService;
     private final LocalFileStorageService localFileStorageService;
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Request createRequest(RequestCreateRequestDto requestDto,Long userId) {
         User user = userService.getUserById(userId);
@@ -36,7 +35,6 @@ public class RequestService {
         return requestRepository.save(request);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Request updateRequest(RequestCreateRequestDto requestDto,Long userId, Long requestId){
         Request request = getActiveRequest(userId,requestId);
@@ -51,6 +49,12 @@ public class RequestService {
     }
 
     @Transactional(readOnly = true)
+    public Request getRequestFeed( Long requestId){
+        return requestRepository.findByIdAndDeletedFalse(requestId)
+                .orElseThrow(()->new NotFoundException("해당 요청을 찾을 수 없습니다."));
+    }
+
+    @Transactional(readOnly = true)
     public Page<Request> getAllRequests(int pageNumber,int pageSize){
         Pageable pageable = PageRequest.of(pageNumber,pageSize);
         return requestRepository.findFeed(pageable);
@@ -61,14 +65,12 @@ public class RequestService {
         return requestRepository.findAllByUserIdAndDeletedFalse(userId);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public void deleteRequest(Long userId, Long requestId) {
         Request request = getActiveRequest(userId,requestId);
         request.setDeleted(true);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
     @Transactional
     public Request uploadThumbnail(Long userId, Long requestId, MultipartFile file) throws IOException {
         Request request = getActiveRequest(userId,requestId);

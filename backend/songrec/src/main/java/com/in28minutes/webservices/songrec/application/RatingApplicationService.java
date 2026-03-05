@@ -32,7 +32,7 @@ public class RatingApplicationService {
         }
 
         requestTrackService.rateTrack(userId,requestId,trackId,rating);
-        List<Keyword> keywords = requestKeywordService.getKeywordsByRequest(userId, requestId);
+        List<Keyword> keywords = requestKeywordService.getKeywordsByRequest(requestId);
         keywords.forEach(keyword -> {
             keywordTrackService.applyRatingDelta(keyword.getId(),trackId, oldRating,rating);
         });

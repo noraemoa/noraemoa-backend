@@ -58,10 +58,9 @@ public class PlaylistController {
 
     @GetMapping("/{playlistId}")
     public PlaylistResponseDto getPlaylistDetails(
-            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long playlistId){
 
-        Playlist playlist = playlistService.getOwnedPlaylist(principal.userId(), playlistId);
+        Playlist playlist = playlistService.getAccessiblePlaylist( playlistId);
         return PlaylistResponseDto.from(playlist);
     }
 
@@ -85,9 +84,8 @@ public class PlaylistController {
     // tracks
     @GetMapping("/{playlistId}/tracks")
     public List<TrackResponseDto> getTracksByPlaylist(
-            @AuthenticationPrincipal JwtPrincipal principal,
             @PathVariable @NotNull @Positive Long playlistId) {
-        List<Track> trackList = playlistTrackService.getTracksByPlaylist(principal.userId(), playlistId);
+        List<Track> trackList = playlistTrackService.getTracksByPlaylist(playlistId);
         return trackList
                 .stream().map(TrackResponseDto::from)
                 .toList();
