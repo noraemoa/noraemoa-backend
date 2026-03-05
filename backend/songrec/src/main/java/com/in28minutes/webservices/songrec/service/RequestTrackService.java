@@ -27,8 +27,7 @@ public class RequestTrackService {
     }
 
     @Transactional(readOnly = true)
-    public List<Track> getTracksByRequest(Long userId, Long requestId) {
-        requestService.getActiveRequest(userId, requestId); //userId 검증용
+    public List<Track> getTracksByRequest(Long requestId) {
 
         return requestTrackRepository.findActiveTracksByRequestId(requestId);
     }

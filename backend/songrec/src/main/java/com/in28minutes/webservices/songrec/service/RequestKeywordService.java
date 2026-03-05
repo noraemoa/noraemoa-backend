@@ -19,8 +19,7 @@ public class RequestKeywordService {
     private final KeywordService keywordService;
 
     @Transactional(readOnly = true)
-    public List<Keyword> getKeywordsByRequest(Long userId, Long requestId) {
-        requestService.getActiveRequest(userId, requestId); //userId 검증용
+    public List<Keyword> getKeywordsByRequest(Long requestId) {
 
         return requestKeywordRepository.findAllKeywordsByRequestId(requestId);
     }

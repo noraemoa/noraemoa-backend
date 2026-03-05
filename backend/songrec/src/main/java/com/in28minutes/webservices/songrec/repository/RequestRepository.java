@@ -13,6 +13,7 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
     List<Request> findAllByUserIdAndDeletedFalse(Long userId);
     List<Request> findAllByDeletedFalse();
     Optional<Request> findByIdAndUserIdAndDeletedFalse(Long id, Long userId);
+    Optional<Request> findByIdAndDeletedFalse(Long id);
 
     @Query("""
 select r
