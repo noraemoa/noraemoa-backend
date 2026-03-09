@@ -6,6 +6,7 @@ import com.in28minutes.webservices.songrec.domain.playlist.PlaylistTrack;
 import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.dto.request.PlaylistCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.PlaylistVisibilityRequestDto;
+import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.*;
 import com.in28minutes.webservices.songrec.service.*;
 import jakarta.validation.Valid;
@@ -89,6 +90,16 @@ public class PlaylistController {
         return trackList
                 .stream().map(TrackResponseDto::from)
                 .toList();
+    }
+
+    @PostMapping("/{playlistId}/tracks")
+    public ResponseEntity<PlaylistTrackResponseDto> addSpotifyTrackByPlaylist(
+            @AuthenticationPrincipal JwtPrincipal principal,
+            @PathVariable @NotNull @Positive Long playlistId,
+            @RequestBody @Valid TrackCreateRequestDto dto) {
+        PlaylistTrack pt=  playlistTrackService.addSpotifyTrackToPlaylist(principal.userId(), playlistId,dto);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(PlaylistTrackResponseDto.from(pt));
     }
 
     @PostMapping("/{playlistId}/tracks/{trackId}")

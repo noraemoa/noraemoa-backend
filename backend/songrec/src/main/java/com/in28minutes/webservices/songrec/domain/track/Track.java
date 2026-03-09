@@ -22,4 +22,10 @@ public class Track {
 
     private String artist;
     private String album;
+
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    @Column(name = "duration_ms")
+    private Integer durationMs;
 }
