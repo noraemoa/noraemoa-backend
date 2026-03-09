@@ -3,6 +3,7 @@ package com.in28minutes.webservices.songrec.service;
 import com.in28minutes.webservices.songrec.domain.playlist.Playlist;
 import com.in28minutes.webservices.songrec.domain.playlist.PlaylistTrack;
 import com.in28minutes.webservices.songrec.domain.track.Track;
+import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.PlaylistTrackRepository;
 import com.in28minutes.webservices.songrec.repository.RequestTrackRepository;
@@ -35,11 +36,27 @@ public class PlaylistTrackService {
     }
 
     @Transactional
-    public PlaylistTrack addTrackByPlaylist(Long userId, Long playlistId, Long trackId) {
+    public PlaylistTrack addTrackByPlaylist(Long userId, Long playlistId, Long trackId ) {
         Playlist playlist = playlistService.getOwnedPlaylist(userId, playlistId);
         Track track = trackService.getTrack(trackId);
 
         return playlistTrackRepository.findByPlaylist_IdAndTrack_Id(playlistId, trackId)
+                .map(existing-> {
+                    if(Boolean.TRUE.equals(existing.getTrackDeleted()))
+                        existing.setTrackDeleted(false); return existing;})
+                .orElseGet(()-> playlistTrackRepository.save(
+                        PlaylistTrack.builder()
+                                .playlist(playlist)
+                                .track(track)
+                                .trackDeleted(false).build()));
+    }
+
+    @Transactional
+    public PlaylistTrack addSpotifyTrackToPlaylist(Long userId, Long playlistId, TrackCreateRequestDto dto){
+        Playlist playlist = playlistService.getOwnedPlaylist(userId, playlistId);
+        Track track = trackService.findOrCreateTrack(dto);
+
+        return playlistTrackRepository.findByPlaylist_IdAndTrack_Id(playlistId, track.getId())
                 .map(existing-> {
                     if(Boolean.TRUE.equals(existing.getTrackDeleted()))
                         existing.setTrackDeleted(false); return existing;})

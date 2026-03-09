@@ -12,6 +12,8 @@ public class TrackResponseDto {
     private String name;
     private String artist;
     private String album;
+    private String imageUrl;
+    private Integer durationMs;
 
     public static TrackResponseDto from(Track track) {
         return TrackResponseDto.builder()
@@ -20,6 +22,8 @@ public class TrackResponseDto {
                 .name(track.getName())
                 .artist(track.getArtist())
                 .album(track.getAlbum())
+                .imageUrl(track.getImageUrl())
+                .durationMs(track.getDurationMs())
                 .build();
     }
 }
