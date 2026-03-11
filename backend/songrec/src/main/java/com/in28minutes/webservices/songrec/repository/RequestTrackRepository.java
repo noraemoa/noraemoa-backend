@@ -11,23 +11,26 @@ import java.util.List;
 import java.util.Optional;
 
 public interface RequestTrackRepository extends JpaRepository<RequestTrack, Long> {
-    @Query("""
-select rt.track
-from RequestTrack rt
-where rt.request.id = :requestId
-  and rt.trackDeleted = false
-""")
-    List<Track> findActiveTracksByRequestId(@Param("requestId") Long requestId);
-    Optional<RequestTrack> findByRequest_IdAndTrack_Id(Long requestId, Long trackId);
 
-    @Query("""
-select
-    rt.request.id as requestId,
-    count(rt.id) as trackCount
-from RequestTrack rt
-where rt.request.id in :requestIds
-    and rt.trackDeleted=false
-group by rt.request.id
-""")
-    List<RequestTrackCountRow> countActiveTracksByRequestIds(@Param("requestIds") List<Long> requestIds);
+  @Query("""
+      select rt.track
+      from RequestTrack rt
+      where rt.request.id = :requestId
+        and rt.trackDeleted = false
+      """)
+  List<Track> findActiveTracksByRequestId(@Param("requestId") Long requestId);
+
+  Optional<RequestTrack> findByRequest_IdAndTrack_Id(Long requestId, Long trackId);
+
+  @Query("""
+      select
+          rt.request.id as requestId,
+          count(rt.id) as trackCount
+      from RequestTrack rt
+      where rt.request.id in :requestIds
+          and rt.trackDeleted=false
+      group by rt.request.id
+      """)
+  List<RequestTrackCountRow> countActiveTracksByRequestIds(
+      @Param("requestIds") List<Long> requestIds);
 }

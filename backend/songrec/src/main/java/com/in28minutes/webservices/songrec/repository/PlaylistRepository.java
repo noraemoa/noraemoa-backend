@@ -15,6 +15,7 @@ import java.util.Optional;
 public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
     List<Playlist> findAllByUserIdAndDeletedFalse(Long userId);
     boolean existsByUser_IdAndTemplate_Id(Long userId,Long templateId);
+    Optional<Playlist> findByIdAndVisibilityAndDeletedFalse(Long id,PlaylistVisibility visibility);
     Optional<Playlist> findByIdAndUserIdAndDeletedFalse(Long id, Long userId);
     Optional<Playlist> findByIdAndDeletedFalse(Long id);
     Page<Playlist> findAllByVisibilityAndDeletedFalse(PlaylistVisibility visibility, Pageable pageable);

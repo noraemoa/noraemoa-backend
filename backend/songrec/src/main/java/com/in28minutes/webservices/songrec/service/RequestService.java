@@ -5,6 +5,7 @@ import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.dto.request.RequestCreateRequestDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.RequestRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -13,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
 
 import java.io.IOException;
 import java.util.List;
@@ -23,12 +25,13 @@ public class RequestService {
     private final RequestRepository requestRepository;
     private final UserService userService;
     private final LocalFileStorageService localFileStorageService;
+    private final EntityManager entityManager;
 
     @Transactional
     public Request createRequest(RequestCreateRequestDto requestDto,Long userId) {
-        User user = userService.getUserById(userId);
+        User userRef=entityManager.getReference(User.class, userId);
         Request request = Request.builder()
-                .user(user)
+                .user(userRef)
                 .deleted(false)
                 .title(requestDto.getTitle())
                 .build();

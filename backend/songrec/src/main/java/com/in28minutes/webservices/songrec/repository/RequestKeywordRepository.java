@@ -11,23 +11,26 @@ import java.util.List;
 import java.util.Optional;
 
 public interface RequestKeywordRepository extends JpaRepository<RequestKeyword, Long> {
-    @Query("""
-select rk.keyword
-from RequestKeyword rk
-where rk.request.id = :requestId
-""")
-    List<Keyword> findAllKeywordsByRequestId(@Param("requestId") Long requestId);
 
-    @Query("""
-select 
-  rk.request.id as requestId,
-  k.id as keywordId,
-  k.rawText as rawText
-from RequestKeyword rk
-join rk.keyword k
-where rk.request.id in :requestIds
-""")
-    List<RequestKeywordRow> findKeywordRowsByRequestIds(@Param("requestIds") List<Long> requestIds);
-    Optional<RequestKeyword> findByRequest_IdAndKeyword_Id(Long requestId, Long keywordId);
-    void deleteByRequest_idAndKeyword_Id(Long requestId, Long keywordId);
+  @Query("""
+      select rk.keyword
+      from RequestKeyword rk
+      where rk.request.id = :requestId
+      """)
+  List<Keyword> findAllKeywordsByRequestId(@Param("requestId") Long requestId);
+
+  @Query("""
+      select 
+        rk.request.id as requestId,
+        k.id as keywordId,
+        k.rawText as rawText
+      from RequestKeyword rk
+      join rk.keyword k
+      where rk.request.id in :requestIds
+      """)
+  List<RequestKeywordRow> findKeywordRowsByRequestIds(@Param("requestIds") List<Long> requestIds);
+
+  Optional<RequestKeyword> findByRequest_IdAndKeyword_Id(Long requestId, Long keywordId);
+
+  void deleteByRequest_idAndKeyword_Id(Long requestId, Long keywordId);
 }

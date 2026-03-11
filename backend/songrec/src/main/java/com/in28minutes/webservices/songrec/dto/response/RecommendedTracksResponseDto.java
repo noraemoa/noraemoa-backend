@@ -8,7 +8,7 @@ import java.util.List;
 @Builder
 @Getter
 public class RecommendedTracksResponseDto {
-    private List<TrackResponseDto> tracks;
+    private List<TrackSimpleResponseDto> tracks;
     private boolean hasNext;
     private int nextPage;
 }

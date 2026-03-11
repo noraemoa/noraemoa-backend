@@ -1,5 +1,8 @@
 package com.in28minutes.webservices.songrec.integration.spotify.dto;
 
+import com.in28minutes.webservices.songrec.domain.track.Track;
+import jakarta.persistence.Column;
+import java.util.Set;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -8,53 +11,55 @@ import java.util.List;
 @Getter
 @Builder
 public class SpotifyTrackResponseDto {
-    private Integer total;
-    private List<Item> items;
 
-    @Getter
-    @Builder
-    public static class Item {
-        private String trackId;
-        private String name;
-        private Integer durationMs;
-        private List<Artist> artists;
-        private Album album;
-    }
+  private List<TrackDetails> tracks;
 
-    @Getter @Builder
-    public static class Artist {
-        private String artistId;
-        private String name;
-    }
+  @Getter
+  @Builder
+  public static class TrackDetails {
 
-    @Getter @Builder
-    public static class Album {
-        private String albumId;
-        private List<Image> albumImages;
-    }
+    private SpotifyTrack track;
+    private Artist artist;
+  }
 
-    @Getter @Builder
-    public static class Image {
-        private String url;
-        private Integer height;
-        private Integer width;
-    }
+  @Getter
+  @Builder
+  public static class SpotifyTrack {
 
-    public static SpotifyTrackResponseDto from(SpotifySearchResponse res){
-        var items = res.tracks().items().stream().map(t->
-                Item.builder()
-                        .trackId(t.id())
-                        .name(t.name())
-                        .durationMs(t.durationMs())
-                        .artists(t.artists().stream().map(a->
-                                Artist.builder().artistId(a.id()).name(a.name()).build()).toList())
-                        .album(Album.builder()
-                                .albumId(t.album().id())
-                                .albumImages(t.album().images().stream().map(i->
-                                    Image.builder()
-                                            .url(i.url()).height(i.height()).width(i.width()).build()).toList()).build())
-                        .build()).toList();
+    private String spotifyId;
+    private String name;
+    private String artistName;
+    private String album;
+    private String imageUrl;
+    private Integer durationMs;
+    private boolean liked;
+  }
 
-        return SpotifyTrackResponseDto.builder().total(res.tracks().total()).items(items).build();
-    }
+  @Getter
+  @Builder
+  public static class Artist {
+    private String artistId;
+  }
+
+
+  public static SpotifyTrackResponseDto from(SpotifySearchResponse searchResponse,
+      Set<String> likedSpotifyIds) {
+    var track = searchResponse.tracks().items().stream()
+        .map(t -> TrackDetails.builder()
+            .track(SpotifyTrack.builder()
+                .spotifyId(t.id())
+                .name(t.name())
+                .artistName(t.artists().get(0).name())
+                .album(t.album().id())
+                .imageUrl(t.album().images().get(0).url())
+                .durationMs(t.durationMs())
+                .liked(likedSpotifyIds.contains(t.id()))
+                .build())
+            .artist(Artist.builder()
+                .artistId(t.artists().get(0).id())
+                .build())
+            .build()).toList();
+
+    return SpotifyTrackResponseDto.builder().tracks(track).build();
+  }
 }

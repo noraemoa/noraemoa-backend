@@ -13,6 +13,9 @@ import java.time.LocalDateTime;
         name = "playlist_likes",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"user_id", "playlist_id"})
+        },
+        indexes = {
+                @Index(name = "idx_playlist_like_user",columnList = "user_id")
         }
 )
 @Getter
