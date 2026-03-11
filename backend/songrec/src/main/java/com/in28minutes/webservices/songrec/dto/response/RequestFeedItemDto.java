@@ -12,24 +12,28 @@ import java.util.List;
 @Builder
 @Getter
 public class RequestFeedItemDto {
-    private Long id; //Request
-    private String username; // Request
-    private String title; // Request
-    private String thumbnailUrl; // Request
-    private List<KeywordResponseDto> keywords; // RequestKeyword
-    private Integer trackCount; // RequestTrack
-    private LocalDateTime createdAt; // Request
 
-    public static RequestFeedItemDto from(Request request, List<RequestKeywordRow> keywordRows,  Integer trackCount){
-        List<KeywordResponseDto> keywords = keywordRows.stream().map(kr->KeywordResponseDto.builder().id(kr.getKeywordId()).rawText(kr.getRawText()).build()).toList();
-        return RequestFeedItemDto.builder()
-                .id(request.getId())
-                .username(request.getUser().getUsername())
-                .title(request.getTitle())
-                .thumbnailUrl(request.getThumbnailUrl())
-                .keywords(keywords)
-                .trackCount(trackCount)
-                .createdAt(request.getCreatedAt())
-                .build();
-    }
+  private Long id; //Request
+  private String username; // Request
+  private String title; // Request
+  private String thumbnailUrl; // Request
+  private List<KeywordResponseDto> keywords; // RequestKeyword
+  private Integer trackCount; // RequestTrack
+  private LocalDateTime createdAt; // Request
+
+  public static RequestFeedItemDto from(Request request, List<RequestKeywordRow> keywordRows,
+      Integer trackCount) {
+    List<KeywordResponseDto> keywords = keywordRows.stream().map(
+            kr -> KeywordResponseDto.builder().id(kr.getKeywordId()).rawText(kr.getRawText()).build())
+        .toList();
+    return RequestFeedItemDto.builder()
+        .id(request.getId())
+        .username(request.getUser().getUsername())
+        .title(request.getTitle())
+        .thumbnailUrl(request.getThumbnailUrl())
+        .keywords(keywords)
+        .trackCount(trackCount)
+        .createdAt(request.getCreatedAt())
+        .build();
+  }
 }

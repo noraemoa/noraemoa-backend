@@ -7,6 +7,7 @@ import com.in28minutes.webservices.songrec.dto.request.KeywordCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.KeywordResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.KeywordTrackResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.TrackResponseDto;
+import com.in28minutes.webservices.songrec.dto.response.TrackSimpleResponseDto;
 import com.in28minutes.webservices.songrec.service.KeywordService;
 import com.in28minutes.webservices.songrec.service.KeywordTrackService;
 import jakarta.validation.Valid;
@@ -56,9 +57,9 @@ public class KeywordController {
     }
 
     @GetMapping ("/keywords/{keywordId}/tracks")
-    public List<TrackResponseDto> getTrackByKeyword(@PathVariable Long keywordId){
+    public List<TrackSimpleResponseDto> getTrackByKeyword(@PathVariable Long keywordId){
         List<Track> tracksList = keywordTrackService.getTracksByKeyword(keywordId);
-        return tracksList.stream().map(TrackResponseDto::from).toList();
+        return tracksList.stream().map(TrackSimpleResponseDto::from).toList();
     }
 
     @GetMapping("/keywords/{keywordId}/tracks/{trackId}/recommend")
