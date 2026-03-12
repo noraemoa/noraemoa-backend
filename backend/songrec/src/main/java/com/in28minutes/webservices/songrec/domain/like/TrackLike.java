@@ -13,6 +13,9 @@ import java.time.LocalDateTime;
         name = "track_likes",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"user_id", "track_id"})
+        },
+        indexes = {
+                @Index(name = "idx_track_like_user",columnList = "user_id")
         }
 )
 @Getter

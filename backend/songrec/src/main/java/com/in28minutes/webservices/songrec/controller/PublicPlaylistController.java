@@ -1,9 +1,7 @@
 package com.in28minutes.webservices.songrec.controller;
 
-import com.in28minutes.webservices.songrec.domain.playlist.Playlist;
-import com.in28minutes.webservices.songrec.dto.response.PlaylistResponseDto;
+import com.in28minutes.webservices.songrec.dto.response.playlist.PlaylistResponseDto;
 import com.in28minutes.webservices.songrec.service.PlaylistService;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;

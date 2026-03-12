@@ -1,4 +1,4 @@
-package com.in28minutes.webservices.songrec.dto.response;
+package com.in28minutes.webservices.songrec.dto.response.keyword;
 
 import com.in28minutes.webservices.songrec.domain.keyword.KeywordTrack;
 import lombok.Builder;
