@@ -1,4 +1,4 @@
-package com.in28minutes.webservices.songrec.dto.response;
+package com.in28minutes.webservices.songrec.dto.response.playlist;
 
 import com.in28minutes.webservices.songrec.domain.playlist.PlaylistTrack;
 import lombok.Builder;

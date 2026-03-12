@@ -3,16 +3,12 @@ package com.in28minutes.webservices.songrec.controller;
 import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.dto.request.UpdateUserPasswordRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.UpdateUsernameRequestDto;
-import com.in28minutes.webservices.songrec.dto.request.UserCreateRequestDto;
-import com.in28minutes.webservices.songrec.dto.response.UserResponseDto;
+import com.in28minutes.webservices.songrec.dto.response.user.UserResponseDto;
 import com.in28minutes.webservices.songrec.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
