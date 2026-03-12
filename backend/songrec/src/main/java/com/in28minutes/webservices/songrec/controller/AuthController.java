@@ -5,7 +5,7 @@ import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.dto.request.LoginRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.UserCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.LoginResponseDto;
-import com.in28minutes.webservices.songrec.dto.response.UserResponseDto;
+import com.in28minutes.webservices.songrec.dto.response.user.UserResponseDto;
 import com.in28minutes.webservices.songrec.service.AuthService;
 import com.in28minutes.webservices.songrec.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;

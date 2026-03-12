@@ -1,4 +1,4 @@
-package com.in28minutes.webservices.songrec.dto.response;
+package com.in28minutes.webservices.songrec.dto.response.user;
 
 import com.in28minutes.webservices.songrec.domain.user.User;
 import lombok.Builder;

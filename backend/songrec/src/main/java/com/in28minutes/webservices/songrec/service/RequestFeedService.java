@@ -1,7 +1,7 @@
 package com.in28minutes.webservices.songrec.service;
 
 import com.in28minutes.webservices.songrec.domain.request.Request;
-import com.in28minutes.webservices.songrec.dto.response.RequestFeedItemDto;
+import com.in28minutes.webservices.songrec.dto.response.request.RequestFeedItemDto;
 import com.in28minutes.webservices.songrec.repository.projection.RequestKeywordRow;
 import com.in28minutes.webservices.songrec.repository.projection.RequestTrackCountRow;
 import lombok.RequiredArgsConstructor;
