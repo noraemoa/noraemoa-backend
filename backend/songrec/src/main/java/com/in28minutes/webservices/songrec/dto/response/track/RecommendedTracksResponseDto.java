@@ -1,5 +1,6 @@
 package com.in28minutes.webservices.songrec.dto.response.track;
 
+import com.in28minutes.webservices.songrec.dto.response.TrackSimpleResponseDto;
 import lombok.Builder;
 import lombok.Getter;
 
