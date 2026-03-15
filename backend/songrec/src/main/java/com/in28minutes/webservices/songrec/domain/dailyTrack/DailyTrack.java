@@ -4,6 +4,8 @@ import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.domain.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -51,6 +53,10 @@ public class DailyTrack {
 
   @Column(name = "selected_date")
   private LocalDate selectedDate;
+
+  @Builder.Default
+  @Enumerated(EnumType.STRING)
+  private DailyTrackEmotion emotion=DailyTrackEmotion.NONE;
 
   //생성 시각
   @CreationTimestamp
