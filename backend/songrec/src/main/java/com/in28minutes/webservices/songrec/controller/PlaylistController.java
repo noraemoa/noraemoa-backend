@@ -9,6 +9,7 @@ import com.in28minutes.webservices.songrec.dto.request.PlaylistVisibilityRequest
 import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.playlist.PlaylistResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.playlist.PlaylistTrackResponseDto;
+import com.in28minutes.webservices.songrec.dto.response.playlist.PlaylistWithLikedResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.track.TrackResponseDto;
 import com.in28minutes.webservices.songrec.integration.spotify.dto.SpotifyTrackResponseDto;
 import com.in28minutes.webservices.songrec.service.*;
@@ -55,18 +56,17 @@ public class PlaylistController {
   }
 
   @GetMapping
-  public List<PlaylistResponseDto> getMyPlaylists(@AuthenticationPrincipal JwtPrincipal principal) {
-    List<Playlist> playlists = playlistService.getPlaylistsByUserId(principal.userId());
-
-    return playlists.stream().map(PlaylistResponseDto::from).toList();
+  public List<PlaylistWithLikedResponseDto> getMyPlaylists(@AuthenticationPrincipal JwtPrincipal principal) {
+    return playlistService.getPlaylistsByUserId(principal.userId());
   }
 
   @GetMapping("/{playlistId}")
-  public PlaylistResponseDto getPlaylistDetails(
+  public PlaylistWithLikedResponseDto getPlaylistDetails(
+      @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long playlistId) {
 
-    Playlist playlist = playlistService.getAccessiblePlaylist(playlistId);
-    return PlaylistResponseDto.from(playlist);
+    return playlistService.getAccessiblePlaylistDetails(principal.userId(), playlistId);
+
   }
 
   @PatchMapping("/{playlistId}/visibility")

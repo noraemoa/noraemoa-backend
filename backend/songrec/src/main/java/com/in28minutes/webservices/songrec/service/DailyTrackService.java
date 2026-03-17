@@ -61,25 +61,37 @@ public class DailyTrackService {
 
   @Transactional(readOnly = true)
   public DailyTrackStreakResponseDto getStreak(Long userId) {
-    List<LocalDate> dates = dailyTrackRepository.findSelectedDateByUser_idOrderBySelectedDateDesc(
-        userId);
+    List<LocalDate> dates = dailyTrackRepository.findSelectedDateByUser_idOrderBySelectedDateDesc(userId);
 
     if (dates.isEmpty()) {
-      return DailyTrackStreakResponseDto.builder().currentStreak(0).build();
+      return DailyTrackStreakResponseDto.builder()
+          .currentStreak(0)
+          .build();
     }
 
     LocalDate today = LocalDate.now();
-    int currentStreak = 0;
+    LocalDate yesterday = today.minusDays(1);
 
-    if (!dates.contains(today)) {
-      return DailyTrackStreakResponseDto.builder().currentStreak(0).build();
+    LocalDate baseDate;
+    boolean recordedToday;
+
+    if (dates.contains(today)) {
+      baseDate = today;
+      recordedToday = true;
+    } else if (dates.contains(yesterday)) {
+      baseDate = yesterday;
+      recordedToday = false;
+    } else {
+      return DailyTrackStreakResponseDto.builder()
+          .currentStreak(0)
+          .build();
     }
 
-    LocalDate cursor = today;
-    currentStreak = 1;
+    int currentStreak = 1;
+    LocalDate cursor = baseDate;
 
     for (LocalDate date : dates) {
-      if (date.equals(today)) {
+      if (date.equals(baseDate)) {
         continue;
       }
 
@@ -91,7 +103,10 @@ public class DailyTrackService {
       }
     }
 
-    return DailyTrackStreakResponseDto.builder().currentStreak(currentStreak).build();
+    return DailyTrackStreakResponseDto.builder()
+        .currentStreak(currentStreak)
+        .recordedToday(recordedToday)
+        .build();
   }
 
   @Transactional(readOnly = true)

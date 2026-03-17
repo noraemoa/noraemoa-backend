@@ -13,19 +13,19 @@ import java.util.List;
 @Getter
 public class RequestFeedItemDto {
 
-  private Long id; //Request
-  private String username; // Request
-  private String title; // Request
-  private String thumbnailUrl; // Request
-  private List<KeywordResponseDto> keywords; // RequestKeyword
+  private Long id;
+  private String username;
+  private String originalPrompt;
+  private String title;
+  private String thumbnailUrl;
+  private List<String> keywords;
   private Integer trackCount; // RequestTrack
-  private LocalDateTime createdAt; // Request
+  private LocalDateTime createdAt;
 
-  public static RequestFeedItemDto from(Request request, List<RequestKeywordRow> keywordRows,
+
+  public static RequestFeedItemDto from(Request request, List<String> keywords,
       Integer trackCount) {
-    List<KeywordResponseDto> keywords = keywordRows.stream().map(
-            kr -> KeywordResponseDto.builder().id(kr.getKeywordId()).rawText(kr.getRawText()).build())
-        .toList();
+
     return RequestFeedItemDto.builder()
         .id(request.getId())
         .username(request.getUser().getUsername())
