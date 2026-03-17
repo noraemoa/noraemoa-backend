@@ -1,5 +1,6 @@
 package com.in28minutes.webservices.songrec.config;
 
+import com.in28minutes.webservices.songrec.integration.openai.config.OpenAiProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -19,4 +20,5 @@ public class WebClientConfig {
                 .baseUrl("https://accounts.spotify.com")
                 .build();
     }
+
 }

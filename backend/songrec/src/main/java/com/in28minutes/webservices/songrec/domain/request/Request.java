@@ -24,7 +24,13 @@ public class Request {
     private User user;
 
     @Column(nullable = false, length = 500)
+    private String originalPrompt;
+
+    @Column(nullable = false, length = 255)
     private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String promptKeywordsJson;
 
     @Column(name = "thumbnail_url")
     private String thumbnailUrl;

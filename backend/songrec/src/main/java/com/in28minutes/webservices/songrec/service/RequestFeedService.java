@@ -26,11 +26,9 @@ public class RequestFeedService {
         List<Long> requestIds = requests.stream().map(Request::getId).toList();
         if(requestIds.isEmpty()) return List.of();
 
-        List<RequestKeywordRow> keywordRows = requestKeywordService.getAllKeywordsByRequests(requestIds);
         List<RequestTrackCountRow> countRows = requestTrackService.getTrackCountsByRequests(requestIds);
 
-        Map<Long,List<RequestKeywordRow>> keywordsByRequestId=
-                keywordRows.stream().collect(Collectors.groupingBy(RequestKeywordRow::getRequestId));
+
         Map<Long,Integer> trackCountByRequestId = countRows.stream().collect(
                 Collectors.toMap(
                         RequestTrackCountRow::getRequestId,
@@ -39,9 +37,9 @@ public class RequestFeedService {
         );
 
         return requests.stream().map(r->{
-            List<RequestKeywordRow> rowsForThis = keywordsByRequestId.getOrDefault(r.getId(),List.of());
+            List<String> keywords = requestService.readKeywords(r.getPromptKeywordsJson());
             Integer trackCount = trackCountByRequestId.getOrDefault(r.getId(),0);
-            return RequestFeedItemDto.from(r,rowsForThis,trackCount);
+            return RequestFeedItemDto.from(r,keywords,trackCount);
         }).toList();
     }
 }

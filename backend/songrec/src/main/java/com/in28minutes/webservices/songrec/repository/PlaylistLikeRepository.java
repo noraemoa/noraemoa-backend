@@ -22,7 +22,21 @@ public interface PlaylistLikeRepository extends JpaRepository<PlaylistLike, Long
       from PlaylistLike pl
       join pl.playlist p
       where pl.user.id = :userId
+      and p.deleted = false
+      and p.visibility = com.in28minutes.webservices.songrec.domain.playlist.PlaylistVisibility.PUBLIC
       order by pl.createdAt desc 
       """)
   List<LikedPlaylistRow> findLikedPlaylists(Long userId);
+
+  @Query("""
+      select p.id
+      from PlaylistLike pl
+      join pl.playlist p
+      where pl.user.id = :userId
+      and p.deleted = false
+      and p.visibility = com.in28minutes.webservices.songrec.domain.playlist.PlaylistVisibility.PUBLIC
+      order by pl.createdAt desc 
+      """)
+  List<Long> findLikedPlaylistIds(Long userId);
+
 }

@@ -20,6 +20,7 @@ select r
 from Request r
 join fetch r.user username
 where r.deleted=false
+order by r.createdAt desc
 """)
     Page<Request> findFeed(Pageable pageable);
 }

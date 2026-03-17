@@ -57,11 +57,8 @@ public class RequestController {
   public ResponseEntity<RequestResponseDto> createRequest(
       @Valid @RequestBody RequestCreateRequestDto requestDto,
       @AuthenticationPrincipal JwtPrincipal principal) {
-    Request request = requestService.createRequest(requestDto, principal.userId());
-    List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(request.getId())
-        .stream().map(KeywordResponseDto::from).toList();
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(RequestResponseDto.from(request, keywords));
+    RequestResponseDto request = requestService.createRequest(requestDto, principal.userId());
+    return ResponseEntity.status(HttpStatus.CREATED).body(request);
   }
 
   @PatchMapping("/{requestId}")
@@ -69,8 +66,7 @@ public class RequestController {
       @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId) {
     Request request = requestService.updateRequest(requestDto, principal.userId(), requestId);
-    List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(requestId)
-        .stream().map(KeywordResponseDto::from).toList();
+    List<String> keywords = requestService.readKeywords(request.getPromptKeywordsJson());
     return RequestResponseDto.from(request, keywords);
   }
 
@@ -89,63 +85,59 @@ public class RequestController {
   }
 
   @GetMapping("/me/{requestId}")
-  public RequestResponseDto getMyRequest(
-      @AuthenticationPrincipal JwtPrincipal principal,
+  public RequestResponseDto getMyRequest(@AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId) {
 
     Request request = requestService.getActiveRequest(principal.userId(), requestId);
-    List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(request.getId())
-        .stream().map(KeywordResponseDto::from).toList();
+    List<String> keywords = requestService.readKeywords(request.getPromptKeywordsJson());
 
     return RequestResponseDto.from(request, keywords);
   }
 
   @GetMapping("/{requestId}")
-  public RequestResponseDto getRequestFeed(
-      @PathVariable @NotNull @Positive Long requestId) {
+  public RequestResponseDto getRequestFeed(@PathVariable @NotNull @Positive Long requestId) {
 
     Request request = requestService.getRequestFeed(requestId);
-    List<KeywordResponseDto> keywords = requestKeywordService.getKeywordsByRequest(request.getId())
-        .stream().map(KeywordResponseDto::from).toList();
+    List<String> keywords = requestService.readKeywords(request.getPromptKeywordsJson());
 
     return RequestResponseDto.from(request, keywords);
   }
 
   @DeleteMapping("/{requestId}")
-  public ResponseEntity<Void> deleteRequest(
-      @AuthenticationPrincipal JwtPrincipal principal,
+  public ResponseEntity<Void> deleteRequest(@AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId) {
     requestService.deleteRequest(principal.userId(), requestId);
     return ResponseEntity.noContent().build();
   }
 
+  @DeleteMapping("/admin/{requestId}")
+  public ResponseEntity<Void> deleteRequestAdmin(
+      @PathVariable @NotNull @Positive Long requestId) {
+    requestService.deleteRequestAdmin(requestId);
+    return ResponseEntity.noContent().build();
+  }
+
   // tracks
   @GetMapping("/{requestId}/tracks")
-  public List<TrackResponseDto> getTracksByRequest(
-      @AuthenticationPrincipal JwtPrincipal principal,
+  public List<TrackResponseDto> getTracksByRequest(@AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId) {
     return requestTrackService.getTracksByRequest(principal.userId(), requestId);
   }
 
 
-   //키워드에 해당하는 트랙들을 받아서 추천도 순으로 정렬한 후 3개씩 받아와서 요청에 해당 트랙들 저장
+  //키워드에 해당하는 트랙들을 받아서 추천도 순으로 정렬한 후 3개씩 받아와서 요청에 해당 트랙들 저장
   @PostMapping("/{requestId}/tracks/recommendations")
   public ResponseEntity<RecommendedTracksResponseDto> addRecommendedTracksToRequest(
       @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId,
       @RequestParam(defaultValue = "0") @PositiveOrZero int page,
-      @RequestParam(defaultValue = "3") @Positive int size
-  ) {
+      @RequestParam(defaultValue = "3") @Positive int size) {
     Slice<Track> slice = keywordTrackService.getRecommendedTracks(requestId, page, size);
     List<Track> tracks = slice.getContent();
     tracks.forEach(track -> requestTrackService.addTrackByRequest(requestId, track.getId()));
-    return ResponseEntity.status(HttpStatus.CREATED).body(
-        RecommendedTracksResponseDto.builder()
-            .tracks(tracks.stream().map(TrackSimpleResponseDto::from).toList())
-            .hasNext(slice.hasNext())
-            .nextPage(slice.hasNext() ? page + 1 : page)
-            .build()
-    );
+    return ResponseEntity.status(HttpStatus.CREATED).body(RecommendedTracksResponseDto.builder()
+        .tracks(tracks.stream().map(TrackSimpleResponseDto::from).toList()).hasNext(slice.hasNext())
+        .nextPage(slice.hasNext() ? page + 1 : page).build());
   }
 
   // track에 추가되지 않은 spotify track을 track테이블에 먼저 추가하고 플리에 해당 track 저장
@@ -153,8 +145,7 @@ public class RequestController {
   public ResponseEntity<RequestTrackResponseDto> addSpotifyTrackByRequest(
       @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId,
-      @RequestBody @Valid TrackCreateRequestDto dto
-  ) {
+      @RequestBody @Valid TrackCreateRequestDto dto) {
     RequestTrack rt = requestTrackService.addSpotifyTrackToRequest(requestId, dto);
     return ResponseEntity.status(HttpStatus.CREATED).body(RequestTrackResponseDto.from(rt));
   }
@@ -182,16 +173,14 @@ public class RequestController {
       @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId,
       @PathVariable @NotNull @Positive Long trackId,
-      @Valid @RequestBody RequestTrackRatingRequestDto ratingDto
-  ) {
+      @Valid @RequestBody RequestTrackRatingRequestDto ratingDto) {
     RequestTrack rt = ratingApplicationService.rateTrack(principal.userId(), requestId, trackId,
         ratingDto.getRating());
     return ResponseEntity.ok(RequestTrackRatingResponseDto.from(rt));
   }
 
   @DeleteMapping("/{requestId}/tracks/{trackId}")
-  public ResponseEntity<Void> deleteTrackByRequest(
-      @AuthenticationPrincipal JwtPrincipal principal,
+  public ResponseEntity<Void> deleteTrackByRequest(@AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId,
       @PathVariable @NotNull @Positive Long trackId) {
 
@@ -221,9 +210,7 @@ public class RequestController {
       @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId) {
     List<Keyword> keywordsList = requestKeywordService.getKeywordsByRequest(requestId);
-    return keywordsList
-        .stream().map(KeywordResponseDto::from)
-        .toList();
+    return keywordsList.stream().map(KeywordResponseDto::from).toList();
   }
 
   @DeleteMapping("/{requestId}/keywords/{keywordId}")
@@ -237,9 +224,8 @@ public class RequestController {
   @PostMapping(value = "/{requestId}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<RequestSummaryResponseDto> uploadThumbnail(
       @AuthenticationPrincipal JwtPrincipal principal,
-      @PathVariable @NotNull @Positive Long requestId,
-      @RequestParam("file") MultipartFile file
-  ) throws IOException {
+      @PathVariable @NotNull @Positive Long requestId, @RequestParam("file") MultipartFile file)
+      throws IOException {
     Request request = requestService.uploadThumbnail(principal.userId(), requestId, file);
     return ResponseEntity.ok(RequestSummaryResponseDto.from(request));
   }

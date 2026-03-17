@@ -1,5 +1,6 @@
 package com.in28minutes.webservices.songrec.controller;
 
+import com.in28minutes.webservices.songrec.config.security.JwtPrincipal;
 import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.dto.request.UpdateUserPasswordRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.UpdateUsernameRequestDto;
@@ -9,6 +10,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,11 +37,17 @@ public class UserController {
         return UserResponseDto.from(user);
     }
 
-    @PatchMapping("/{userId}/username")
+    @GetMapping("/me")
+    public UserResponseDto getUser(@AuthenticationPrincipal JwtPrincipal principal) {
+        User user = userService.getUserById(principal.userId());
+        return UserResponseDto.from(user);
+    }
+
+    @PatchMapping("/me/username")
     public UserResponseDto updateUsername(
             @Valid @RequestBody UpdateUsernameRequestDto userDto,
-            @PathVariable @NotNull @Positive Long userId){
-        User user = userService.updateUsername(userDto, userId);
+        @AuthenticationPrincipal JwtPrincipal principal){
+        User user = userService.updateUsername(userDto, principal.userId());
         return UserResponseDto.from(user);
     }
     @PatchMapping("/{userId}/password")
