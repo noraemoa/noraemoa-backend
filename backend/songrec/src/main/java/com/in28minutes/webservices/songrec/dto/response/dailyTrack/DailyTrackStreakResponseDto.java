@@ -10,4 +10,5 @@ import lombok.Setter;
 @Setter
 public class DailyTrackStreakResponseDto {
   private Integer currentStreak;
+  private boolean recordedToday;
 }

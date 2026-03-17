@@ -1,5 +1,6 @@
 package com.in28minutes.webservices.songrec.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
@@ -28,6 +29,7 @@ public class TrackService {
   private final RequestTrackRepository requestTrackRepository;
   private final SpotifyApiClient spotifyApiClient;
   private final TrackLikeRepository trackLikeRepository;
+  private final ObjectMapper objectMapper;
 
 
   @Transactional
@@ -65,7 +67,14 @@ public class TrackService {
   @Transactional(readOnly = true)
   public SpotifyTrackResponseDto search(Long userId, String query) {
     SpotifySearchResponse spotifyTracks = spotifyApiClient.search(query);
-
+    try {
+      System.out.println(
+          objectMapper.writerWithDefaultPrettyPrinter()
+              .writeValueAsString(spotifyTracks)
+      );
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
     List<String> spotifyIds = spotifyTracks.tracks().items().stream()
         .map(SpotifySearchResponse.TrackItem::id).toList();
     Set<String> likedSpotifyIds = new HashSet<>(
