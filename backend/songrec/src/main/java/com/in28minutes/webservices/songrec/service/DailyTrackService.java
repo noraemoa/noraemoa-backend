@@ -119,7 +119,7 @@ public class DailyTrackService {
 
   @Transactional(readOnly = true)
   public List<DailyTrack> getMyDailyTracks(Long userId) {
-    return dailyTrackRepository.findByUser_idOrderBySelectedDate(userId);
+    return dailyTrackRepository.findByUser_idOrderBySelectedDateDesc(userId);
   }
 
   @Transactional(readOnly = true)

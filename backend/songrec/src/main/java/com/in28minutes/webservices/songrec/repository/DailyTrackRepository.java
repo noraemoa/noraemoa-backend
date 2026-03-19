@@ -11,7 +11,7 @@ public interface DailyTrackRepository extends JpaRepository<DailyTrack, Long> {
 
   Optional<DailyTrack> findByUser_idAndSelectedDate(Long userId, LocalDate selectedDate);
 
-  List<DailyTrack> findByUser_idOrderBySelectedDate(Long userId);
+  List<DailyTrack> findByUser_idOrderBySelectedDateDesc(Long userId);
 
   @Query("""
       select dt.selectedDate

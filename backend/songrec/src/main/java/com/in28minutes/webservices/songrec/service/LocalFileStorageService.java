@@ -92,4 +92,16 @@ public class LocalFileStorageService {
     }
 
     public record StoredFile(String key, String url) {}
+
+    public StoredFile storeGeneratedThumbnail(Long requestId, byte[] imageBytes) throws IOException {
+        String fileName = requestId + "_thumb.png";
+
+        Path path = Paths.get("uploads/requests/" + fileName);
+        Files.createDirectories(path.getParent());
+        Files.write(path, imageBytes);
+
+        String url = "/uploads/requests/" + fileName;
+
+        return new StoredFile(fileName, url);
+    }
 }
