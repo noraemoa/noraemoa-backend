@@ -35,6 +35,7 @@ public class RequestService {
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
     private final RequestPromptAiService requestPromptAiService;
+    private final RequestThumbnailAiService requestThumbnailAiService;
 
     @Transactional
     public Request updateRequest(RequestCreateRequestDto requestDto,Long userId, Long requestId){
@@ -148,6 +149,22 @@ public class RequestService {
             .build();
 
         requestRepository.save(request);
+
+        try{
+            byte[] imageBytes = requestThumbnailAiService.generateThumbnail(
+                dto.getPrompt(),
+                refineResult.getTitle(),
+                refineResult.getKeywords()
+            );
+            LocalFileStorageService.StoredFile stored=
+                localFileStorageService.storeGeneratedThumbnail(request.getId(),imageBytes);
+
+            request.setThumbnailKey(stored.key());
+            request.setThumbnailUrl(stored.url());
+        }catch (Exception e){
+            System.out.println("Thumbnail generation failed");
+            e.printStackTrace();
+        }
 
         return RequestResponseDto.from(request, refineResult.getKeywords());
     }
