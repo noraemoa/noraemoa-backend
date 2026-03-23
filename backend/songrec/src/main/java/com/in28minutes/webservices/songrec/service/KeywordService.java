@@ -26,7 +26,7 @@ public class KeywordService {
         String normalized = normalize(raw);
 
         return keywordRepository.findByNormalizedText(normalized)
-                .orElseGet(()->keywordRepository.save(
+                .orElseGet(()->keywordRepository.saveAndFlush(
                         Keyword.builder()
                                 .rawText(raw)
                                 .normalizedText(normalized)
