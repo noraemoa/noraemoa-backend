@@ -9,6 +9,7 @@ import com.in28minutes.webservices.songrec.dto.response.playlist.PlaylistWithLik
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.PlaylistLikeRepository;
 import com.in28minutes.webservices.songrec.repository.PlaylistRepository;
+import com.in28minutes.webservices.songrec.repository.projection.PopularPlaylistRow;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -135,5 +136,10 @@ public class PlaylistService {
     List<Long> likedPlaylistIds = playlistLikeRepository.findLikedPlaylistIds(userId);
 
     return playlists.map(p-> PlaylistWithLikedResponseDto.from(p, likedPlaylistIds.contains(p.getId()))).stream().toList();
+  }
+
+  @Transactional(readOnly = true)
+  public Page<PopularPlaylistRow> getPopularPlaylists(Pageable pageable) {
+    return playlistRepository.findPopularPlaylists(pageable);
   }
 }
