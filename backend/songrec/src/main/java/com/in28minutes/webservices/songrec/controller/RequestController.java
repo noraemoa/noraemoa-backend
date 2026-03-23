@@ -1,5 +1,7 @@
 package com.in28minutes.webservices.songrec.controller;
 
+import static com.in28minutes.webservices.songrec.global.util.TextNormalizer.normalize;
+
 import com.in28minutes.webservices.songrec.application.RatingApplicationService;
 import com.in28minutes.webservices.songrec.config.security.JwtPrincipal;
 import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
@@ -51,6 +53,7 @@ public class RequestController {
   private final KeywordTrackService keywordTrackService;
   private final RatingApplicationService ratingApplicationService;
   private final RequestFeedService requestFeedService;
+  private final KeywordService keywordService;
 
   // requests
   @PostMapping
@@ -67,7 +70,9 @@ public class RequestController {
       @PathVariable @NotNull @Positive Long requestId) {
     Request request = requestService.updateRequest(requestDto, principal.userId(), requestId);
     List<String> keywords = requestService.readKeywords(request.getPromptKeywordsJson());
-    return RequestResponseDto.from(request, keywords);
+    return RequestResponseDto.from(request, keywords.stream().map(k->Keyword.builder()
+        .rawText(k)
+        .normalizedText(normalize(k)).build()).toList());
   }
 
   @GetMapping("/feed")
@@ -91,7 +96,9 @@ public class RequestController {
     Request request = requestService.getActiveRequest(principal.userId(), requestId);
     List<String> keywords = requestService.readKeywords(request.getPromptKeywordsJson());
 
-    return RequestResponseDto.from(request, keywords);
+    return RequestResponseDto.from(request, keywords.stream().map(k->Keyword.builder()
+        .rawText(k)
+        .normalizedText(normalize(k)).build()).toList());
   }
 
   @GetMapping("/{requestId}")
@@ -100,7 +107,9 @@ public class RequestController {
     Request request = requestService.getRequestFeed(requestId);
     List<String> keywords = requestService.readKeywords(request.getPromptKeywordsJson());
 
-    return RequestResponseDto.from(request, keywords);
+    return RequestResponseDto.from(request, keywords.stream().map(k->Keyword.builder()
+        .rawText(k)
+        .normalizedText(normalize(k)).build()).toList());
   }
 
   @DeleteMapping("/{requestId}")
@@ -147,6 +156,11 @@ public class RequestController {
       @PathVariable @NotNull @Positive Long requestId,
       @RequestBody @Valid TrackCreateRequestDto dto) {
     RequestTrack rt = requestTrackService.addSpotifyTrackToRequest(requestId, dto);
+    List<Keyword> keywords = requestKeywordService.getKeywordsByRequest(requestId);
+    keywords.forEach(keyword -> {
+      keywordTrackService.addTrackByKeyword(keyword.getId(), rt.getTrack().getId());
+      keywordTrackService.recommendTrack(keyword.getId(), rt.getTrack().getId());
+    });
     return ResponseEntity.status(HttpStatus.CREATED).body(RequestTrackResponseDto.from(rt));
   }
 
@@ -194,8 +208,10 @@ public class RequestController {
       @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId,
       @PathVariable @NotNull @Positive Long keywordId) {
-    RequestKeyword rk = requestKeywordService.addKeywordByRequest(principal.userId(), requestId,
-        keywordId);
+    Request request = requestService.getRequestFeed(requestId);
+    Keyword keyword = keywordService.getKeyword(keywordId);
+    RequestKeyword rk = requestKeywordService.addKeywordByRequest( request,
+        keyword);
     // 키워드를 추가했을 때 키워드와 연결된 track을 해당 request track에 추가
 //        List<Track> tracks = keywordTrackService.getTracksByKeyword(keywordId);
 //
@@ -207,7 +223,6 @@ public class RequestController {
 
   @GetMapping("/{requestId}/keywords")
   public List<KeywordResponseDto> getKeywordsByRequest(
-      @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId) {
     List<Keyword> keywordsList = requestKeywordService.getKeywordsByRequest(requestId);
     return keywordsList.stream().map(KeywordResponseDto::from).toList();

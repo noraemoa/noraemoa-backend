@@ -3,7 +3,9 @@ package com.in28minutes.webservices.songrec.service;
 import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
 import com.in28minutes.webservices.songrec.domain.request.Request;
 import com.in28minutes.webservices.songrec.domain.request.RequestKeyword;
+import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.RequestKeywordRepository;
+import com.in28minutes.webservices.songrec.repository.RequestRepository;
 import com.in28minutes.webservices.songrec.repository.projection.RequestKeywordRow;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,8 +17,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RequestKeywordService {
     private final RequestKeywordRepository requestKeywordRepository;
-    private final RequestService requestService;
     private final KeywordService keywordService;
+    private final RequestRepository requestRepository;
 
     @Transactional(readOnly = true)
     public List<Keyword> getKeywordsByRequest(Long requestId) {
@@ -31,11 +33,9 @@ public class RequestKeywordService {
     }
 
     @Transactional
-    public RequestKeyword addKeywordByRequest(Long userId, Long requestId, Long keywordId) {
-        Request request = requestService.getActiveRequest(userId, requestId);
-        Keyword keyword = keywordService.getKeyword(keywordId);
+    public RequestKeyword addKeywordByRequest( Request request, Keyword keyword) {
 
-        return requestKeywordRepository.findByRequest_IdAndKeyword_Id(requestId,keywordId)
+        return requestKeywordRepository.findByRequest_IdAndKeyword_Id(request.getId(),keyword.getId())
                 .orElseGet(()->requestKeywordRepository.save(
                         RequestKeyword.builder()
                                 .request(request)

@@ -3,6 +3,7 @@ package com.in28minutes.webservices.songrec.repository;
 import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
 import com.in28minutes.webservices.songrec.domain.playlist.Playlist;
 import com.in28minutes.webservices.songrec.domain.playlist.PlaylistVisibility;
+import com.in28minutes.webservices.songrec.repository.projection.PopularPlaylistRow;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -31,4 +32,21 @@ public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
             @Param("userId") Long userId
     );
 
+    @Query("""
+select 
+p.id as playlistId,
+p.user.id as userId,
+p.user.username as username,
+p.title as title,
+p.thumbnailUrl as thumbnailUrl,
+p.visibility as visibility,
+count(pl) as likeCount
+from Playlist p
+left join PlaylistLike pl on pl.playlist=p
+where p.visibility = com.in28minutes.webservices.songrec.domain.playlist.PlaylistVisibility.PUBLIC
+and p.deleted = false
+group by p
+order by count(pl) desc, p.id desc
+""")
+    Page<PopularPlaylistRow> findPopularPlaylists(Pageable pageable);
 }

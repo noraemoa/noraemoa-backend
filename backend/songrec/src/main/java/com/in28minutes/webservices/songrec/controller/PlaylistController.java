@@ -10,13 +10,18 @@ import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.playlist.PlaylistResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.playlist.PlaylistTrackResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.playlist.PlaylistWithLikedResponseDto;
+import com.in28minutes.webservices.songrec.dto.response.playlist.PopularPlaylistResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.track.TrackResponseDto;
 import com.in28minutes.webservices.songrec.integration.spotify.dto.SpotifyTrackResponseDto;
+import com.in28minutes.webservices.songrec.repository.projection.PopularPlaylistRow;
 import com.in28minutes.webservices.songrec.service.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -58,6 +63,14 @@ public class PlaylistController {
   @GetMapping
   public List<PlaylistWithLikedResponseDto> getMyPlaylists(@AuthenticationPrincipal JwtPrincipal principal) {
     return playlistService.getPlaylistsByUserId(principal.userId());
+  }
+
+  @GetMapping("/popular")
+  public List<PopularPlaylistResponseDto> getPopularPlaylists(@RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "10") int size){
+    Pageable pageable = PageRequest.of(page,size);
+    Page<PopularPlaylistRow> playlists=playlistService.getPopularPlaylists(pageable);
+    return playlists.map(PopularPlaylistResponseDto::from).stream().toList();
   }
 
   @GetMapping("/{playlistId}")

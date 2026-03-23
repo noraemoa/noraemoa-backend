@@ -112,7 +112,7 @@ public class OpenAiRequestPromptClient {
         keywords.add(keyword.asText());
       }
 
-      return new RequestPromptRefineResult(title, keywords);
+      return RequestPromptRefineResult.from(title, keywords);
     } catch (Exception e) {
       throw new RuntimeException("Failed to parse OpenAI response", e);
     }
