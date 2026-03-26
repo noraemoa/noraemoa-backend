@@ -3,12 +3,14 @@ package com.in28minutes.webservices.songrec.dto.request;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class RequestCreateRequestDto {
 
     @NotBlank(message = "요청을 입력해주세요.")

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Getter
+@Builder
 public class LoginRequestDto {
     @Email @NotBlank
     private String email;
