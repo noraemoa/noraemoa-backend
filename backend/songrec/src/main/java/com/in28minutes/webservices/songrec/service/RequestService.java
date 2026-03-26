@@ -5,12 +5,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
 import com.in28minutes.webservices.songrec.domain.request.Request;
-import com.in28minutes.webservices.songrec.domain.request.RequestKeyword;
 import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.dto.request.KeywordCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.RequestCreateRequestDto;
-import com.in28minutes.webservices.songrec.dto.response.TrackSimpleResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.request.RequestResponseDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.integration.openai.dto.RequestPromptRefineResult;
@@ -23,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,9 +35,7 @@ public class RequestService {
 
   private final RequestRepository requestRepository;
   private final UserRepository userRepository;
-  private final UserService userService;
   private final LocalFileStorageService localFileStorageService;
-  private final EntityManager entityManager;
   private final ObjectMapper objectMapper;
   private final RequestPromptAiService requestPromptAiService;
   private final RequestThumbnailAiService requestThumbnailAiService;
@@ -85,6 +80,7 @@ public class RequestService {
     request.setDeleted(true);
   }
 
+  //Admin 사용자만 모든 request를 삭제할 수 있음.
   @Transactional
   public void deleteRequestAdmin(Long requestId) {
     Request request = getRequestFeed(requestId);

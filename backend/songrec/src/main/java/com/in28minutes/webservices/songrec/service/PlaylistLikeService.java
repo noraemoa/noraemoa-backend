@@ -22,8 +22,6 @@ public class PlaylistLikeService {
 
   private final PlaylistLikeRepository playlistLikeRepository;
   private final PlaylistRepository playlistRepository;
-  private final UserService userService;
-  private final PlaylistService playlistService;
   private final EntityManager entityManager;
 
   @Transactional

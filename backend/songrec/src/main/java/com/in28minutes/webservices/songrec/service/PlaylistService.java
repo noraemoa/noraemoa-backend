@@ -11,6 +11,8 @@ import com.in28minutes.webservices.songrec.repository.PlaylistLikeRepository;
 import com.in28minutes.webservices.songrec.repository.PlaylistRepository;
 import com.in28minutes.webservices.songrec.repository.projection.PopularPlaylistRow;
 import jakarta.persistence.EntityManager;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,7 +52,7 @@ public class PlaylistService {
 
   @Transactional(readOnly = true)
   public List<PlaylistWithLikedResponseDto> getPlaylistsByUserId(Long userId) {
-    List<Long> likedPlaylistIds = playlistLikeRepository.findLikedPlaylistIds(userId);
+    Set<Long> likedPlaylistIds = new HashSet<>(playlistLikeRepository.findLikedPlaylistIds(userId));
     List<Playlist> playlists= playlistRepository.findAllByUserIdAndDeletedFalse(userId);
     return playlists.stream().map(p->PlaylistWithLikedResponseDto.from(p,likedPlaylistIds.contains(p.getId()))).toList();
   }
