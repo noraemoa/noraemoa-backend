@@ -28,6 +28,22 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // 400
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequest(
+        BadRequestException e,
+        HttpServletRequest request
+    ) {
+        ErrorResponse error = ErrorResponse.builder()
+            .timestamp(LocalDateTime.now())
+            .status(HttpStatus.BAD_REQUEST.value())
+            .error("BAD_REQUEST")
+            .message(e.getMessage())
+            .path(request.getRequestURI())
+            .build();
+
+        return ResponseEntity.badRequest().body(error);
+    }
+
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatchException(
             final MethodArgumentTypeMismatchException e,
