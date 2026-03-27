@@ -39,9 +39,9 @@ public class AuthService {
     private void addRefreshCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken",token)
                 .httpOnly(true)
-                .secure(false)
-                .path("/auth")
-                .sameSite("Lax")
+                .secure(true)
+                .path("/")
+                .sameSite("None")
                 .maxAge(Duration.ofDays(14))
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
@@ -50,9 +50,9 @@ public class AuthService {
     private void deleteRefreshCookie(HttpServletResponse response){
         ResponseCookie cookie = ResponseCookie.from("refreshToken","")
                 .httpOnly(true)
-                .secure(false)
-                .path("/auth")
-                .sameSite("Lax")
+                .secure(true)
+                .path("/")
+                .sameSite("None")
                 .maxAge(0)
                 .build();
 
