@@ -43,10 +43,10 @@ public class SecurityConfig {
                                 "/uploads/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.POST,
-                                "/login",
-                                "/signup",
-                                "/refresh",
-                                "/logout"
+                                "/auth/login",
+                                "/auth/signup",
+                                "/auth/refresh",
+                                "/auth/logout"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,"/public/playlists").permitAll()
                         .anyRequest().authenticated()
