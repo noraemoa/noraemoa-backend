@@ -10,6 +10,8 @@ import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.repository.PlaylistLikeRepository;
 import com.in28minutes.webservices.songrec.repository.PlaylistRepository;
 import com.in28minutes.webservices.songrec.repository.projection.PopularPlaylistRow;
+import com.in28minutes.webservices.songrec.service.fileStorage.FileStorageService;
+import com.in28minutes.webservices.songrec.service.fileStorage.S3FileStorageService.StoredFile;
 import jakarta.persistence.EntityManager;
 import java.util.HashSet;
 import java.util.Set;
@@ -30,7 +32,7 @@ public class PlaylistService {
   private final PlaylistRepository playlistRepository;
   private final PlaylistTemplateService playlistTemplateService;
   private final EntityManager entityManager;
-  private final LocalFileStorageService localFileStorageService;
+  private final FileStorageService fileStorageService;
   private final PlaylistLikeRepository playlistLikeRepository;
 
   @Transactional
@@ -108,8 +110,8 @@ public class PlaylistService {
       throws IOException {
     Playlist playlist = getOwnedPlaylist(userId, playlistId);
 
-    LocalFileStorageService.StoredFile stored =
-        localFileStorageService.storePlaylistThumbnail(playlistId, file);
+    StoredFile stored =
+        fileStorageService.storePlaylistThumbnail(playlistId, file);
 
     playlist.setThumbnailKey(stored.key());
     playlist.setThumbnailUrl(stored.url());

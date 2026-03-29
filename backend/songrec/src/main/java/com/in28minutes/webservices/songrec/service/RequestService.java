@@ -14,8 +14,8 @@ import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.integration.openai.dto.RequestPromptRefineResult;
 import com.in28minutes.webservices.songrec.repository.RequestRepository;
 import com.in28minutes.webservices.songrec.repository.UserRepository;
-import com.in28minutes.webservices.songrec.service.LocalFileStorageService.StoredFile;
-import jakarta.persistence.EntityManager;
+import com.in28minutes.webservices.songrec.service.fileStorage.FileStorageService;
+import com.in28minutes.webservices.songrec.service.fileStorage.S3FileStorageService.StoredFile;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,7 +35,6 @@ public class RequestService {
 
   private final RequestRepository requestRepository;
   private final UserRepository userRepository;
-  private final LocalFileStorageService localFileStorageService;
   private final ObjectMapper objectMapper;
   private final RequestPromptAiService requestPromptAiService;
   private final RequestThumbnailAiService requestThumbnailAiService;
@@ -43,6 +42,7 @@ public class RequestService {
   private final KeywordService keywordService;
   private final RequestTrackService requestTrackService;
   private final KeywordTrackService keywordTrackService;
+  private final FileStorageService fileStorageService;
 
   @Transactional
   public Request updateRequest(RequestCreateRequestDto requestDto, Long userId, Long requestId) {
@@ -93,7 +93,7 @@ public class RequestService {
     Request request = getActiveRequest(userId, requestId);
 
     StoredFile stored =
-        localFileStorageService.storeRequestThumbnail(requestId, file);
+        fileStorageService.storeRequestThumbnail(requestId, file);
 
     request.setThumbnailKey(stored.key());
     request.setThumbnailUrl(stored.url());
@@ -177,7 +177,7 @@ public class RequestService {
               Keyword::getRawText).toList()
       );
       StoredFile stored =
-          localFileStorageService.storeGeneratedThumbnail(request.getId(), imageBytes);
+          fileStorageService.storeGeneratedThumbnail(request.getId(), imageBytes);
 
       request.setThumbnailKey(stored.key());
       request.setThumbnailUrl(stored.url());

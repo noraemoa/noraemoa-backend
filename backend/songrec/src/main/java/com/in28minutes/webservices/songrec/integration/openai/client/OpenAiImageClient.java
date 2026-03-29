@@ -33,9 +33,12 @@ public class OpenAiImageClient {
     System.out.println("=== OpenAI image request body ===");
     System.out.println(requestBody);
 
-    String response = openAiWebClient.post().uri("/images/generations")
+    String response = openAiWebClient.post()
+        .uri("/images/generations")
         .header("Authorization", "Bearer " + properties.getApiKey())
-        .header("Content-Type", "application/json").bodyValue(requestBody).retrieve()
+        .header("Content-Type", "application/json")
+        .bodyValue(requestBody)
+        .retrieve()
         .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
             clientResponse -> clientResponse.bodyToMono(String.class)
                 .map(body -> new RuntimeException("OpenAI Image API error: " + body)))

@@ -1,4 +1,4 @@
-package com.in28minutes.webservices.songrec.service;
+package com.in28minutes.webservices.songrec.service.fileStorage;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 @Service
 public class LocalFileStorageService {
 
+    // 현재 실행 위치 기준으로 uploads 폴더
     private final Path root = Paths.get("uploads");
 
     private static final Map<String, String> ALLOWED_IMAGE_TYPES = Map.of(
