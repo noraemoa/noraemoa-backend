@@ -75,7 +75,7 @@ public class S3FileStorageService implements FileStorageService {
 
     s3Client.putObject(request, RequestBody.fromBytes(file.getBytes()));
 
-    String url = s3Properties.getBucket() + "/" + key;
+    String url = s3Properties.getBaseUrl() + "/" + key;
     return new StoredFile(key, url);
   }
 
