@@ -1,7 +1,8 @@
-package com.in28minutes.webservices.songrec.service;
+package com.in28minutes.webservices.songrec.service.openai;
 
 import com.in28minutes.webservices.songrec.integration.openai.client.OpenAiRequestPromptClient;
 import com.in28minutes.webservices.songrec.integration.openai.dto.RequestPromptRefineResult;
+import com.in28minutes.webservices.songrec.service.RequestPromptAiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.in28minutes.webservices.songrec.integration.openai.config.OpenAiProperties;
 import com.in28minutes.webservices.songrec.integration.openai.dto.GeneratedImageResult;
+import com.in28minutes.webservices.songrec.integration.openai.dto.OpenAiImageGenerateRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -14,38 +15,30 @@ import java.util.Base64;
 @RequiredArgsConstructor
 public class OpenAiImageClient {
 
+  // OpenAI API 호출용 (Webclient 외부 HTTP API 호출용)
   private final WebClient openAiWebClient;
-  private final OpenAiProperties properties;
   private final ObjectMapper objectMapper;
 
   public GeneratedImageResult generate(String prompt) {
 
-    String requestBody = """
-        {
-          "model": "gpt-image-1.5",
-          "prompt": %s,
-          "size": "1024x1024",
-          "quality": "medium",
-            "output_format": "png"
-        }
-        """.formatted(toJson(prompt));
-
-    System.out.println("=== OpenAI image request body ===");
-    System.out.println(requestBody);
+    OpenAiImageGenerateRequest request = OpenAiImageGenerateRequest.builder()
+        .model("gpt-image-1.5")
+        .prompt(prompt)
+        .quality("medium")
+        .output_format("png")
+        .background("opaque")
+        .n(1)
+        .build();
 
     String response = openAiWebClient.post()
         .uri("/images/generations")
-        .header("Authorization", "Bearer " + properties.getApiKey())
-        .header("Content-Type", "application/json")
-        .bodyValue(requestBody)
+        .bodyValue(request)
         .retrieve()
         .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
             clientResponse -> clientResponse.bodyToMono(String.class)
                 .map(body -> new RuntimeException("OpenAI Image API error: " + body)))
         .bodyToMono(String.class).block();
 
-    System.out.println("=== OpenAI image raw response ===");
-    System.out.println(response);
     return parse(response);
   }
 
@@ -60,7 +53,16 @@ public class OpenAiImageClient {
   private GeneratedImageResult parse(String response) {
     try {
       JsonNode root = objectMapper.readTree(response);
-      String base64 = root.path("data").get(0).path("b64_json").asText();
+      JsonNode data = root.path("data");
+      if (!data.isArray() || data.isEmpty()) {
+        throw new RuntimeException("OpenAI image response missing data array: " + response);
+      }
+
+      JsonNode first = data.get(0);
+      String base64 = first.path("b64_json").asText(null);
+      if (base64 == null || base64.isBlank()) {
+        throw new RuntimeException("OpenAI image response missing b64_json: " + response);
+      }
 
       byte[] imageBytes = Base64.getDecoder().decode(base64);
 

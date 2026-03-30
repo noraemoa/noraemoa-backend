@@ -6,6 +6,7 @@ import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.LikedTrackItemDto;
 import com.in28minutes.webservices.songrec.dto.response.TrackLikeStatusDto;
 import com.in28minutes.webservices.songrec.service.TrackLikeService;
+import com.in28minutes.webservices.songrec.service.TrackService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TrackLikeController {
 
   private final TrackLikeService trackLikeService;
+  private final TrackService trackService;
 
   @PostMapping("/tracks/{trackId}/likes")
   public ResponseEntity<TrackLikeStatusDto> addTrackLike(
@@ -44,6 +46,14 @@ public class TrackLikeController {
       @AuthenticationPrincipal JwtPrincipal principal
   ) {
     TrackLike trackLike = trackLikeService.addSpotifyTrackLike(principal.userId(), dto);
+
+    try{
+      trackService.ensureTrackIndexed(trackLike.getTrack(),dto);
+    }catch (Exception e){
+      e.printStackTrace();
+    }
+
+
     return ResponseEntity.status(HttpStatus.CREATED).body(TrackLikeStatusDto.from(trackLike));
   }
 

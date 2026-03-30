@@ -27,6 +27,7 @@ public record SpotifySearchResponse(
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Album(
             String id,
+            String name,
             List<Image> images
     ){}
 

@@ -23,7 +23,6 @@ public class SpotifyApiClient {
                         .queryParam("type","track")
                         .queryParam("market","KR")
                         .queryParam("limit",10)
-
                         .build())
                 .header(HttpHeaders.AUTHORIZATION,"Bearer "+tokenManager.getAccessToken())
                 .retrieve()

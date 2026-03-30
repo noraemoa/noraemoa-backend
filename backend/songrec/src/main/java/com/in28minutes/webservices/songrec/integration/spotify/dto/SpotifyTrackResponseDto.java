@@ -50,7 +50,7 @@ public class SpotifyTrackResponseDto {
                 .spotifyId(t.id())
                 .name(t.name())
                 .artistName(t.artists().get(0).name())
-                .album(t.album().id())
+                .album(t.album().name())
                 .imageUrl(t.album().images().get(0).url())
                 .durationMs(t.durationMs())
                 .liked(likedSpotifyIds.contains(t.id()))
