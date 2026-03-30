@@ -120,4 +120,28 @@ public class TrackService {
   public SpotifyGetArtistResponse getArtist(String id) {
     return spotifyApiClient.getArtist(id);
   }
+
+  public TrackCreateRequestDto toTrackCreateRequestDto(SpotifySearchResponse.TrackItem item) {
+    String imageUrl = null;
+    if (item.album() != null
+        && item.album().images() != null
+        && !item.album().images().isEmpty()) {
+      imageUrl = item.album().images().get(0).url();
+    }
+
+    String artistName = item.artists() != null && !item.artists().isEmpty()
+        ? item.artists().get(0).name()
+        : "Unknown Artist";
+
+    String albumName = item.album() != null ? item.album().name() : null;
+
+    return TrackCreateRequestDto.builder()
+        .spotifyId(item.id())
+        .name(item.name())
+        .artist(artistName)
+        .album(albumName)
+        .imageUrl(imageUrl)
+        .durationMs(item.durationMs())
+        .build();
+  }
 }
