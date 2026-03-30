@@ -41,6 +41,7 @@ public class PlaylistController {
 
   private final PlaylistService playlistService;
   private final PlaylistTrackService playlistTrackService;
+  private final TrackService trackService;
 
   // playlists
   @PostMapping
@@ -116,6 +117,12 @@ public class PlaylistController {
       @RequestBody @Valid TrackCreateRequestDto dto) {
     PlaylistTrack pt = playlistTrackService.addSpotifyTrackToPlaylist(principal.userId(),
         playlistId, dto);
+
+    try{
+      trackService.ensureTrackIndexed(pt.getTrack(),dto);
+    }catch (Exception e){
+      e.printStackTrace();
+    }
 
     return ResponseEntity.status(HttpStatus.CREATED).body(PlaylistTrackResponseDto.from(pt));
   }

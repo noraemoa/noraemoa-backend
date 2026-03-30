@@ -19,24 +19,15 @@ public class OpenAiRequestPromptClient {
   private final ObjectMapper objectMapper;
 
   public RequestPromptRefineResult refinePrompt(String prompt) {
-    System.out.println("openai baseUrl = " + properties.getBaseUrl());
-    System.out.println("openai model = " + properties.getModel());
-    System.out.println("openai api key null? " + (properties.getApiKey() == null));
-    System.out.println("openai api key length = " +
-        (properties.getApiKey() == null ? 0 : properties.getApiKey().length()));
 
     String requestBody = buildRequestBody(prompt);
 
     String response = openAiWebClient.post()
         .uri("/responses")
-        .header("Authorization", "Bearer " + properties.getApiKey())
-        .header("Content-Type", "application/json")
         .bodyValue(requestBody)
         .retrieve()
         .bodyToMono(String.class)
         .block();
-
-    System.out.println("OpenAI raw response = " + response);
 
     return parseResponse(response);
   }
@@ -71,17 +62,27 @@ public class OpenAiRequestPromptClient {
               "name": "request_prompt_refine",
               "strict": true,
               "schema": {
-                "type": "object",
-                "properties": {
-                  "title": { "type": "string" },
-                  "keywords": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                  }
-                },
-                "required": ["title", "keywords"],
-                "additionalProperties": false
-              }
+                          "type": "object",
+                          "properties": {
+                            "title": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 40
+                            },
+                            "keywords": {
+                              "type": "array",
+                              "minItems": 3,
+                              "maxItems": 6,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 30
+                              }
+                            }
+                          },
+                          "required": ["title", "keywords"],
+                          "additionalProperties": false
+                        }
             }
           }
         }
@@ -99,11 +100,8 @@ public class OpenAiRequestPromptClient {
   private RequestPromptRefineResult parseResponse(String responseBody) {
     try {
       JsonNode root = objectMapper.readTree(responseBody);
-      String outputText = root.path("output").get(0)
-          .path("content").get(0)
-          .path("text")
-          .asText();
 
+      String outputText = extractOutputText(root);
       JsonNode json = objectMapper.readTree(outputText);
 
       String title = json.path("title").asText();
@@ -116,5 +114,37 @@ public class OpenAiRequestPromptClient {
     } catch (Exception e) {
       throw new RuntimeException("Failed to parse OpenAI response", e);
     }
+  }
+
+  private String extractOutputText(JsonNode root) {
+    String outputText = root.path("output_text").asText(null);
+    if (outputText != null && !outputText.isBlank()) {
+      return outputText;
+    }
+
+    JsonNode output = root.path("output");
+    if (output.isArray()) {
+      for (JsonNode item : output) {
+        if (!"message".equals(item.path("type").asText())) {
+          continue;
+        }
+
+        JsonNode content = item.path("content");
+        if (!content.isArray()) {
+          continue;
+        }
+
+        for (JsonNode contentItem : content) {
+          if ("output_text".equals(contentItem.path("type").asText())) {
+            String text = contentItem.path("text").asText(null);
+            if (text != null && !text.isBlank()) {
+              return text;
+            }
+          }
+        }
+      }
+    }
+
+    throw new RuntimeException("OpenAI response missing output text");
   }
 }

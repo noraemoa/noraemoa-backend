@@ -54,6 +54,7 @@ public class RequestController {
   private final RatingApplicationService ratingApplicationService;
   private final RequestFeedService requestFeedService;
   private final KeywordService keywordService;
+  private final TrackService trackService;
 
   // requests
   @PostMapping
@@ -156,11 +157,20 @@ public class RequestController {
       @PathVariable @NotNull @Positive Long requestId,
       @RequestBody @Valid TrackCreateRequestDto dto) {
     RequestTrack rt = requestTrackService.addSpotifyTrackToRequest(requestId, dto);
+
+    // 이건 이제 필요없을듯
     List<Keyword> keywords = requestKeywordService.getKeywordsByRequest(requestId);
     keywords.forEach(keyword -> {
       keywordTrackService.addTrackByKeyword(keyword.getId(), rt.getTrack().getId());
       keywordTrackService.recommendTrack(keyword.getId(), rt.getTrack().getId());
     });
+
+    try{
+      trackService.ensureTrackIndexed(rt.getTrack(),dto);
+    }catch (Exception e){
+      e.printStackTrace();
+    }
+
     return ResponseEntity.status(HttpStatus.CREATED).body(RequestTrackResponseDto.from(rt));
   }
 

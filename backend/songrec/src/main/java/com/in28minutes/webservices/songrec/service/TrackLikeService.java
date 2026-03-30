@@ -41,7 +41,7 @@ public class TrackLikeService {
 
   private TrackLike createTrackLike(Long userId, Track track) {
     if (trackLikeRepository.existsByUser_IdAndTrack_Id(userId, track.getId())) {
-      throw new ConflictException("이미 좋아한 트랙입니다.");
+      return trackLikeRepository.findByTrackId(track.getId());
     }
 
     User userRef = entityManager.getReference(User.class, userId);

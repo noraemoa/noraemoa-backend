@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface TrackLikeRepository extends JpaRepository<TrackLike, Long> {
+    TrackLike findByTrackId(Long trackId);
     boolean existsByUser_IdAndTrack_Id(Long userId, Long trackId);
     void deleteByUser_IdAndTrack_Id(Long userId, Long trackId);
     @Query("""

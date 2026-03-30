@@ -1,12 +1,11 @@
-package com.in28minutes.webservices.songrec.config;
+package com.in28minutes.webservices.songrec.integration.spotify.config;
 
-import com.in28minutes.webservices.songrec.integration.openai.config.OpenAiProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
-public class WebClientConfig {
+public class SpotifyClientConfig {
     @Bean
     public WebClient spotifyWebClient(){
         return WebClient.builder()

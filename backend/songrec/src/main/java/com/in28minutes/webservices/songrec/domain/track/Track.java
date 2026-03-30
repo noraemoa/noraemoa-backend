@@ -28,4 +28,8 @@ public class Track {
 
     @Column(name = "duration_ms")
     private Integer durationMs;
+
+    @Column(name = "vector_indexed",nullable = false)
+    @Builder.Default
+    private Boolean vectorIndexed = false;
 }
