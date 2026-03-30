@@ -24,7 +24,7 @@ public class TrackSeedService {
     List<String> queries = seedQueryProvider.getSeedQueries();
 
     for (String query : queries) {
-
+      seedByQuery(query);
     }
   }
 
