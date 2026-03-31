@@ -4,6 +4,8 @@ import com.in28minutes.webservices.songrec.integration.qdrant.config.QdrantPrope
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantCreateCollectionRequest;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantCreateCollectionRequest.Vectors;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantPoint;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchRequest;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantUpsertPointsRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -77,5 +79,20 @@ public class QdrantClient {
 
   public String upsertSongPoint(QdrantPoint point){
     return upsertPoints(qdrantProperties.getCollectionName(),List.of(point));
+  }
+
+  public QdrantSearchResponse searchSong(List<Float>vector,int limit){
+    QdrantSearchRequest request = QdrantSearchRequest.builder()
+        .query(vector)
+        .limit(limit)
+        .with_payload(true)
+        .with_vector(false).build();
+
+    return qdrantWebClient.post()
+        .uri("/collections/{collectionName}/points/query",qdrantProperties.getCollectionName())
+        .bodyValue(request)
+        .retrieve()
+        .bodyToMono(QdrantSearchResponse.class)
+        .block();
   }
 }

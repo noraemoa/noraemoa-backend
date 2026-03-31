@@ -25,8 +25,6 @@ public class OpenAiTrackTagClient {
         .bodyToMono(String.class)
         .block();
 
-    System.out.println("=== OpenAI track tag raw response ===");
-    System.out.println(response);
     return parseResponse(response);
   }
 

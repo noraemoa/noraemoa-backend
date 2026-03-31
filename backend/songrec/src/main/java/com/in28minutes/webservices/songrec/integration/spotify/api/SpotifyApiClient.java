@@ -3,6 +3,7 @@ package com.in28minutes.webservices.songrec.integration.spotify.api;
 import com.in28minutes.webservices.songrec.integration.spotify.auth.SpotifyTokenManager;
 import com.in28minutes.webservices.songrec.integration.spotify.dto.SpotifyGetArtistResponse;
 import com.in28minutes.webservices.songrec.integration.spotify.dto.SpotifySearchResponse;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -20,7 +21,7 @@ public class SpotifyApiClient {
                 .uri(uriBuilder -> uriBuilder
                         .path("/v1/search")
                         .queryParam("q",query)
-                        .queryParam("type","track")
+                        .queryParam("type", List.of("track","artist"))
                         .queryParam("market","KR")
                         .queryParam("limit",10)
                         .build())

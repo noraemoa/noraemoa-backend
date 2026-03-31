@@ -9,6 +9,7 @@ import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.dto.request.KeywordCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.RequestCreateRequestDto;
+import com.in28minutes.webservices.songrec.dto.request.TrackSemanticSearchItemDto;
 import com.in28minutes.webservices.songrec.dto.response.request.RequestResponseDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.integration.openai.dto.RequestPromptRefineResult;
@@ -16,6 +17,7 @@ import com.in28minutes.webservices.songrec.repository.RequestRepository;
 import com.in28minutes.webservices.songrec.repository.UserRepository;
 import com.in28minutes.webservices.songrec.service.fileStorage.FileStorageService;
 import com.in28minutes.webservices.songrec.service.fileStorage.S3FileStorageService.StoredFile;
+import com.in28minutes.webservices.songrec.service.qdrant.TrackSemanticSearchService;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -38,11 +40,10 @@ public class RequestService {
   private final ObjectMapper objectMapper;
   private final RequestPromptAiService requestPromptAiService;
   private final RequestThumbnailAiService requestThumbnailAiService;
-  private final RequestKeywordService requestKeywordService;
   private final KeywordService keywordService;
   private final RequestTrackService requestTrackService;
-  private final KeywordTrackService keywordTrackService;
   private final FileStorageService fileStorageService;
+  private final TrackSemanticSearchService trackSemanticSearchService;
 
   @Transactional
   public Request updateRequest(RequestCreateRequestDto requestDto, Long userId, Long requestId) {
@@ -135,7 +136,8 @@ public class RequestService {
   }
 
   @Transactional
-  public RequestResponseDto createRequest(RequestCreateRequestDto dto, Long userId) {
+  public RequestResponseDto createRequest(RequestCreateRequestDto dto, Long userId)
+      throws JsonProcessingException {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new NotFoundException("User not found"));
 
@@ -150,6 +152,8 @@ public class RequestService {
       );
     }
 
+    // request랑 keyword를 분맇야하나? keyword가 이제 꼭 필요할까?
+    // 뒤에 이미지 생성할때 필요하긴해
     List<Keyword> keywords=refineResult.getKeywords().stream()
         .map(k -> keywordService.createKeyword(new KeywordCreateRequestDto(k))).toList();
     Request request = Request.builder()
@@ -161,14 +165,19 @@ public class RequestService {
         .build();
 
     requestRepository.saveAndFlush(request);
-    Set<Track> tracks = new java.util.HashSet<>(Set.of());
-    keywords.forEach(k -> {
-      requestKeywordService.addKeywordByRequest(request, k);
-      tracks.addAll(keywordTrackService.getTracksByKeyword(k.getId()));
 
-    });
+    //!!!여기 qdrant로 받아 온 트랙으로 교체!!!!
+//    Set<Track> tracks = new java.util.HashSet<>(Set.of());
+//    keywords.forEach(k -> {
+//      requestKeywordService.addKeywordByRequest(request, k);
+//      tracks.addAll(keywordTrackService.getTracksByKeyword(k.getId()));
+//
+//    });
+//    tracks.forEach(t->requestTrackService.addTrackByRequest(request.getId(),t.getId()));
 
-    tracks.forEach(t->requestTrackService.addTrackByRequest(request.getId(),t.getId()));
+    List<TrackSemanticSearchItemDto> searchResults = trackSemanticSearchService.search(dto.getPrompt(),20);
+    searchResults.forEach(r->requestTrackService.addTrackByRequest(request.getId(),r.getTrackId()));
+
     try {
       byte[] imageBytes = requestThumbnailAiService.generateThumbnail(
           dto.getPrompt(),

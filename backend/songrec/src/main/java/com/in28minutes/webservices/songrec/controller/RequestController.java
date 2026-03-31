@@ -2,6 +2,7 @@ package com.in28minutes.webservices.songrec.controller;
 
 import static com.in28minutes.webservices.songrec.global.util.TextNormalizer.normalize;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.in28minutes.webservices.songrec.application.RatingApplicationService;
 import com.in28minutes.webservices.songrec.config.security.JwtPrincipal;
 import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
@@ -60,7 +61,7 @@ public class RequestController {
   @PostMapping
   public ResponseEntity<RequestResponseDto> createRequest(
       @Valid @RequestBody RequestCreateRequestDto requestDto,
-      @AuthenticationPrincipal JwtPrincipal principal) {
+      @AuthenticationPrincipal JwtPrincipal principal) throws JsonProcessingException {
     RequestResponseDto request = requestService.createRequest(requestDto, principal.userId());
     return ResponseEntity.status(HttpStatus.CREATED).body(request);
   }
