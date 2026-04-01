@@ -4,15 +4,16 @@ import com.in28minutes.webservices.songrec.integration.qdrant.config.QdrantPrope
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantCreateCollectionRequest;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantCreateCollectionRequest.Vectors;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantPoint;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantRetrieveRequest;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchRequest;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse.QdrantRetrieveResponse;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantUpsertPointsRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Component
@@ -86,7 +87,7 @@ public class QdrantClient {
         .query(vector)
         .limit(limit)
         .with_payload(true)
-        .with_vector(false).build();
+        .with_vector(true).build();
 
     return qdrantWebClient.post()
         .uri("/collections/{collectionName}/points/query",qdrantProperties.getCollectionName())
@@ -94,5 +95,37 @@ public class QdrantClient {
         .retrieve()
         .bodyToMono(QdrantSearchResponse.class)
         .block();
+  }
+
+  public QdrantRetrieveResponse retrievePoints(List<Long> ids){
+    QdrantRetrieveRequest request = QdrantRetrieveRequest.builder()
+        .ids(ids)
+        .with_payload(true)
+        .with_vector(true).build();
+
+    return qdrantWebClient.post()
+        .uri("/collections/{collectionName}/points",qdrantProperties.getCollectionName())
+        .bodyValue(request)
+        .retrieve()
+        .bodyToMono(QdrantRetrieveResponse.class)
+        .block();
+  }
+
+  public QdrantRetrieveResponse retrieveUserProfilePoints(List<Long> ids){
+    QdrantRetrieveRequest request = QdrantRetrieveRequest.builder()
+        .ids(ids)
+        .with_payload(true)
+        .with_vector(true).build();
+
+    return qdrantWebClient.post()
+        .uri("/collections/{collectionName}/points","user_profiles")
+        .bodyValue(request)
+        .retrieve()
+        .bodyToMono(QdrantRetrieveResponse.class)
+        .block();
+  }
+
+  public String upsertUserProfilePoint(QdrantPoint point){
+    return upsertPoints("user_profiles",List.of(point));
   }
 }

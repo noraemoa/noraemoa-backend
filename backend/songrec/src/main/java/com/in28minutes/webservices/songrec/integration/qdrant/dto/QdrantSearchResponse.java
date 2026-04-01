@@ -7,20 +7,21 @@ import lombok.Setter;
 @Getter
 @Setter
 public class QdrantSearchResponse {
-  private Result result;
+  private QdrantRetrieveResponse result;
   private String status;
 
   @Getter
   @Setter
-  public static class Result{
+  public static class QdrantRetrieveResponse {
     private List<Point> points;
   }
 
   @Getter
   @Setter
   public static class Point{
-    private Object id; //trackId
+    private Long id; //trackId
     private Double score;
+    private List<Float> vector;
     private SongPayload payload;
   }
 }
