@@ -136,11 +136,11 @@ public class RequestService {
   }
 
   @Transactional
-  public RequestResponseDto createRequest(RequestCreateRequestDto dto, Long userId)
-      throws JsonProcessingException {
+  public RequestResponseDto createRequest(RequestCreateRequestDto dto, Long userId){
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new NotFoundException("User not found"));
 
+    // 프롬프트 title 및 keyword 생성
     RequestPromptRefineResult refineResult;
     try {
       refineResult = requestPromptAiService.refine(dto.getPrompt());
@@ -152,8 +152,6 @@ public class RequestService {
       );
     }
 
-    // request랑 keyword를 분맇야하나? keyword가 이제 꼭 필요할까?
-    // 뒤에 이미지 생성할때 필요하긴해
     List<Keyword> keywords=refineResult.getKeywords().stream()
         .map(k -> keywordService.createKeyword(new KeywordCreateRequestDto(k))).toList();
     Request request = Request.builder()
@@ -166,16 +164,8 @@ public class RequestService {
 
     requestRepository.saveAndFlush(request);
 
-    //!!!여기 qdrant로 받아 온 트랙으로 교체!!!!
-//    Set<Track> tracks = new java.util.HashSet<>(Set.of());
-//    keywords.forEach(k -> {
-//      requestKeywordService.addKeywordByRequest(request, k);
-//      tracks.addAll(keywordTrackService.getTracksByKeyword(k.getId()));
-//
-//    });
-//    tracks.forEach(t->requestTrackService.addTrackByRequest(request.getId(),t.getId()));
-
-    List<TrackSemanticSearchItemDto> searchResults = trackSemanticSearchService.search(dto.getPrompt(),20);
+    // 트랙 추가
+    List<TrackSemanticSearchItemDto> searchResults = trackSemanticSearchService.search(userId,dto.getPrompt(),5);
     searchResults.forEach(r->requestTrackService.addTrackByRequest(request.getId(),r.getTrackId()));
 
     try {

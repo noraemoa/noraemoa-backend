@@ -41,7 +41,7 @@ public class TrackLikeService {
 
   private TrackLike createTrackLike(Long userId, Track track) {
     if (trackLikeRepository.existsByUser_IdAndTrack_Id(userId, track.getId())) {
-      return trackLikeRepository.findByTrackId(track.getId());
+      return trackLikeRepository.findByUser_IdAndTrack_id(userId, track.getId()).orElse(null);
     }
 
     User userRef = entityManager.getReference(User.class, userId);

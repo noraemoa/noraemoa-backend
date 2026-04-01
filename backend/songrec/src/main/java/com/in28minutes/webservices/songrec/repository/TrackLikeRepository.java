@@ -3,11 +3,12 @@ package com.in28minutes.webservices.songrec.repository;
 import com.in28minutes.webservices.songrec.domain.like.TrackLike;
 import com.in28minutes.webservices.songrec.repository.projection.LikedTrackRow;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface TrackLikeRepository extends JpaRepository<TrackLike, Long> {
-    TrackLike findByTrackId(Long trackId);
+    Optional<TrackLike> findByUser_IdAndTrack_id(Long userId,Long trackId);
     boolean existsByUser_IdAndTrack_Id(Long userId, Long trackId);
     void deleteByUser_IdAndTrack_Id(Long userId, Long trackId);
     @Query("""
@@ -34,4 +35,11 @@ and t.spotifyId in :spotifyTrackIds
 """)
     List<String>findLikedSpotifyIds(Long userId,List<String> spotifyTrackIds);
 
+    @Query("""
+            select
+            count(tl)
+            from TrackLike tl
+            where tl.track.id = :trackId
+        """)
+    Long countByTrackId(Long trackId);
 }

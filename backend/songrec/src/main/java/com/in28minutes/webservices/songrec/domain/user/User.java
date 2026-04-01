@@ -40,6 +40,6 @@ public class User {
     @Column(name = "profile_summary", columnDefinition = "TEXT")
     private String profileSummary;
 
-    @Column(name = "profile_vector_ref", length = 100)
-    private String profileVectorRef;
+    @Column(name = "profile_vector_ref")
+    private Long profileVectorRef;
 }

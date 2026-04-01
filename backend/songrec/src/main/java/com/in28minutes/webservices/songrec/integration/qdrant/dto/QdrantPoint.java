@@ -10,7 +10,7 @@ import lombok.Getter;
 @Builder
 @AllArgsConstructor
 public class QdrantPoint {
-  private Long id; // track_id 저장 (spotify_id 아님)
+  private Object id; // track_id 저장 (spotify_id 아님)
   private List<Float> vector;
   private Object payload;
 }

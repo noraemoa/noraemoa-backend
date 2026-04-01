@@ -7,31 +7,27 @@ import org.springframework.stereotype.Component;
 public class SeedQueryProvider {
   public List<String> getSeedQueries(){
     return List.of(
-
-        "다비치",
-        "10cm",
-        "이무진",
-        "ALLDAY PROJECT",
-        "오존",
-        "멜로망스",
-        "아이들",
-        "루시",
-        "볼빨간사춘기",
-        "TOUCHED",
-        "박소은",
-        "우효",
-        "프롬",
-        "너드커넥션",
-        "김수영",
-        "로꼬",
-        "비비",
-        "오반",
-        "최유리",
-        "스텔라장",
-        "싸이",
-        "정오월",
-        "혁오",
-        "알레프"
+        "태연",
+        "소녀시대",
+        "Hearts2Hearts",
+        "김하온",
+        "Crush",
+        "GRAY",
+        "aespa",
+        "이준형",
+        "비투비",
+        "유다빈밴드",
+        "김필선",
+        "김결",
+        "백아",
+        "선우정아",
+        "유라",
+        "조이",
+        "SOLE",
+        "CHEEZE",
+        "BIG Naughty",
+        "케이시",
+        "죠지"
     );
   }
 }

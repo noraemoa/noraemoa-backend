@@ -14,4 +14,8 @@ public class QdrantCollectionService {
   public void createSongsCollectionIfNotExists() {
     qdrantClient.createCollectionIfNotExist(qdrantProperties.getCollectionName());
   }
+
+  public void ensureUserProfileCollection(){
+    qdrantClient.createCollectionIfNotExist("user_profiles");
+  }
 }
