@@ -30,9 +30,10 @@ public class UserTasteProfileService {
     return """
         Build a stable music preference profile from the following balance game answers.
         
-        Interpret the answers as indicators of long-term listening taste.
-        Prefer music-recommendation-friendly tags.
-        Keep the profile distinctive but not overfitted.
+        Important:
+        - Infer patterns across multiple answers, not one-to-one restatement.
+        - Make the Korean text fields feel like a personality test result that is relatable, slightly fresh, and believable.
+        - Keep the result grounded.
 
         Answers:
         %s
