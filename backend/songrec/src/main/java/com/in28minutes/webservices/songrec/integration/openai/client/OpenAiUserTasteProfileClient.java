@@ -11,11 +11,12 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Component
 @RequiredArgsConstructor
 public class OpenAiUserTasteProfileClient {
+
   private final WebClient openAiWebClient;
   private final OpenAiProperties properties;
   private final ObjectMapper objectMapper;
 
-  public UserTasteProfileResult generateProfile(String userInput){
+  public UserTasteProfileResult generateProfile(String userInput) {
     String requestBody = buildRequestBody(userInput);
 
     String response = openAiWebClient.post()
@@ -38,7 +39,7 @@ public class OpenAiUserTasteProfileClient {
               "content": [
                 {
                   "type": "input_text",
-                  "text": "You generate a stable music preference profile from balance game answers. Return practical recommendation-oriented tags, not literary descriptions. Keep tags short. Infer broad preferences only. Return only the structured result."
+                  "text": "You analyze balance game answers and generate a stable music taste profile for recommendation. Focus on long-term listening preference, not temporary mood. Produce practical tags that are useful for music retrieval, embedding-based search, reranking, and onboarding recommendations. Keep tags short, lowercase, and reusable. Avoid poetic tag phrases, near-duplicate synonyms, and overly niche assumptions unless strongly supported by the answers. Infer distinctive but broad preferences. Also generate a concise personality-test-style profile name and one-line description that feel engaging and user-friendly. Return only the structured result."
                 }
               ]
             },
@@ -88,6 +89,14 @@ public class OpenAiUserTasteProfileClient {
                   "profile_summary": {
                     "type": "string",
                     "maxLength": 300
+                  },
+                  "profile_type_name": {
+                    "type": "string",
+                     "maxLength": 40
+                  },
+                  "profile_one_liner": {
+                    "type": "string",
+                    "maxLength": 160
                   }
                 },
                 "required": [
@@ -96,7 +105,9 @@ public class OpenAiUserTasteProfileClient {
                   "preferred_texture_tags",
                   "preferred_genre_tags",
                   "disliked_tags",
-                  "profile_summary"
+                  "profile_summary",
+                  "profile_type_name",
+                  "profile_one_liner"
                 ],
                 "additionalProperties": false
               }
@@ -125,7 +136,8 @@ public class OpenAiUserTasteProfileClient {
 
       return objectMapper.readValue(outputText, UserTasteProfileResult.class);
     } catch (Exception e) {
-      throw new RuntimeException("Failed to parse OpenAI user taste profile response: " + responseBody, e);
+      throw new RuntimeException(
+          "Failed to parse OpenAI user taste profile response: " + responseBody, e);
     }
   }
 

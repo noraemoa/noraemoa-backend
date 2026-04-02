@@ -13,4 +13,6 @@ public class UserTasteProfileResult {
   private List<String> preferred_genre_tags;
   private List<String> disliked_tags;
   private String profile_summary;
+  private String profile_type_name;
+  private String profile_one_liner;
 }

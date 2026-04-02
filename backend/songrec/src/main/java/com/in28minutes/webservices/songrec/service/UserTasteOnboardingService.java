@@ -4,12 +4,14 @@ import com.in28minutes.webservices.songrec.domain.user.PreferenceTagCategory;
 import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.domain.user.UserPreferenceTag;
 import com.in28minutes.webservices.songrec.dto.request.UserTasteProfileCreateRequestDto;
+import com.in28minutes.webservices.songrec.dto.response.user.AggregatedTasteProfile;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.integration.openai.dto.UserTasteProfileResult;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.UserProfilePayload;
 import com.in28minutes.webservices.songrec.repository.UserPreferenceTagRepository;
 import com.in28minutes.webservices.songrec.repository.UserRepository;
 import com.in28minutes.webservices.songrec.service.openai.UserTasteProfileService;
+import com.in28minutes.webservices.songrec.service.profile.BalanceGameTagAggregator;
 import com.in28minutes.webservices.songrec.service.qdrant.UserProfileVectorIndexService;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,13 +26,15 @@ public class UserTasteOnboardingService {
   private final UserPreferenceTagRepository userPreferenceTagRepository;
   private final UserTasteProfileService userTasteProfileService;
   private final UserProfileVectorIndexService userProfileVectorIndexService;
+  private final BalanceGameTagAggregator balanceGameTagAggregator;
 
   @Transactional
-  public void saveUserTasteProfile(Long userId, UserTasteProfileCreateRequestDto dto) {
+  public UserTasteProfileResult saveUserTasteProfile(Long userId, UserTasteProfileCreateRequestDto dto) {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new NotFoundException("User not found"));
 
-    UserTasteProfileResult result = userTasteProfileService.generateProfile(dto);
+    AggregatedTasteProfile aggregated = balanceGameTagAggregator.aggregate(dto);
+    UserTasteProfileResult result = userTasteProfileService.generateProfile(dto,aggregated);
 
     userPreferenceTagRepository.deleteAllByUser_Id(userId);
 
@@ -57,6 +61,7 @@ public class UserTasteOnboardingService {
 
     user.setProfileSummary(result.getProfile_summary());
     user.setProfileVectorRef(vectorRef);
+    return result;
   }
 
   private void addTags(

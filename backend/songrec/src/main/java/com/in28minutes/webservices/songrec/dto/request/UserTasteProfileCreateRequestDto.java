@@ -14,7 +14,8 @@ public class UserTasteProfileCreateRequestDto {
 
   @Getter @Setter
   public static class BalanceAnswerDto{
-    private String questionKey;
+    private String questionText;
+    private String choiceText;
     private String choiceKey;
   }
 }

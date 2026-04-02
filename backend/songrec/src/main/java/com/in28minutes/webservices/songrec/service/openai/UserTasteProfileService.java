@@ -1,6 +1,7 @@
 package com.in28minutes.webservices.songrec.service.openai;
 
 import com.in28minutes.webservices.songrec.dto.request.UserTasteProfileCreateRequestDto;
+import com.in28minutes.webservices.songrec.dto.response.user.AggregatedTasteProfile;
 import com.in28minutes.webservices.songrec.integration.openai.client.OpenAiUserTasteProfileClient;
 import com.in28minutes.webservices.songrec.integration.openai.dto.UserTasteProfileResult;
 import java.util.stream.Collectors;
@@ -12,21 +13,47 @@ import org.springframework.stereotype.Service;
 public class UserTasteProfileService {
   private final OpenAiUserTasteProfileClient openAiUserTasteProfileClient;
 
-  public UserTasteProfileResult generateProfile(UserTasteProfileCreateRequestDto dto){
-    String userInput = buildUserInput(dto);
+  public UserTasteProfileResult generateProfile(UserTasteProfileCreateRequestDto dto,
+      AggregatedTasteProfile aggregatedTasteProfile){
+    String userInput = buildUserInput(dto, aggregatedTasteProfile);
     return openAiUserTasteProfileClient.generateProfile(userInput);
   }
 
-  private String buildUserInput(UserTasteProfileCreateRequestDto dto) {
+  private String buildUserInput(UserTasteProfileCreateRequestDto dto,AggregatedTasteProfile aggregatedTasteProfile) {
     String answers = dto.getAnswers().stream()
-        .map(a -> "- " + a.getQuestionKey() + ": " + a.getChoiceKey())
-        .collect(Collectors.joining("\n"));
+        .map(a -> """
+            Question: %s
+            Selected: %s
+            """.formatted(a.getQuestionText(),a.getChoiceText()))
+        .collect(Collectors.joining("\n\n"));
 
     return """
-        Generate a stable music taste profile from these balance game answers.
+        Build a stable music preference profile from the following balance game answers.
+        
+        Interpret the answers as indicators of long-term listening taste.
+        Prefer music-recommendation-friendly tags.
+        Keep the profile distinctive but not overfitted.
 
         Answers:
         %s
-        """.formatted(answers);
+        
+        Rule-based base tags:
+        - mood: %s
+        - scene: %s
+        - texture: %s
+        - genre: %s
+        - disliked: %s
+        
+        Base summary:
+        %s
+        """.formatted(
+            answers,
+        String.join(", ",aggregatedTasteProfile.getMoodTags()),
+        String.join(", ",aggregatedTasteProfile.getSceneTags()),
+        String.join(", ",aggregatedTasteProfile.getTextureTags()),
+        String.join(", ",aggregatedTasteProfile.getGenreTags()),
+        String.join(", ",aggregatedTasteProfile.getDislikedTags()),
+        aggregatedTasteProfile.getBaseSummary()
+    );
   }
 }
