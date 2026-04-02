@@ -54,7 +54,7 @@ public class TrackSemanticSearchService {
     return rerank(response.getResult().getPoints(), userId,limit);
   }
 
-  private List<TrackSemanticSearchItemDto> rerank(List<Point> response,Long userId, int limit){
+  public List<TrackSemanticSearchItemDto> rerank(List<Point> response,Long userId, int limit){
     List<TrackSemanticSearchItemDto> results = new ArrayList<>();
     if(response ==null||response.isEmpty()){
       return results;

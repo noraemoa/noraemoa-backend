@@ -19,7 +19,7 @@ public class QdrantSearchResponse {
   @Getter
   @Setter
   public static class Point{
-    private Long id; //trackId
+    private Long id;
     private Double score;
     private List<Float> vector;
     private SongPayload payload;

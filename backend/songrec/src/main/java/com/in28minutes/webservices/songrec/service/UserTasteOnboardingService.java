@@ -1,40 +1,54 @@
 package com.in28minutes.webservices.songrec.service;
 
+import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.domain.user.PreferenceTagCategory;
 import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.domain.user.UserPreferenceTag;
+import com.in28minutes.webservices.songrec.dto.request.TrackSemanticSearchItemDto;
 import com.in28minutes.webservices.songrec.dto.request.UserTasteProfileCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.user.AggregatedTasteProfile;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.integration.openai.dto.UserTasteProfileResult;
+import com.in28minutes.webservices.songrec.integration.qdrant.client.QdrantClient;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse.Point;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse.QdrantRetrieveResponse;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.UserProfilePayload;
 import com.in28minutes.webservices.songrec.repository.UserPreferenceTagRepository;
 import com.in28minutes.webservices.songrec.repository.UserRepository;
 import com.in28minutes.webservices.songrec.service.openai.UserTasteProfileService;
 import com.in28minutes.webservices.songrec.service.profile.BalanceGameTagAggregator;
+import com.in28minutes.webservices.songrec.service.qdrant.TrackSemanticSearchService;
 import com.in28minutes.webservices.songrec.service.qdrant.UserProfileVectorIndexService;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserTasteOnboardingService {
+
   private final UserRepository userRepository;
   private final UserPreferenceTagRepository userPreferenceTagRepository;
   private final UserTasteProfileService userTasteProfileService;
   private final UserProfileVectorIndexService userProfileVectorIndexService;
   private final BalanceGameTagAggregator balanceGameTagAggregator;
+  private final QdrantClient qdrantClient;
+  private final TrackSemanticSearchService trackSemanticSearchService;
+
 
   @Transactional
-  public UserTasteProfileResult saveUserTasteProfile(Long userId, UserTasteProfileCreateRequestDto dto) {
+  public UserTasteProfileResult saveUserTasteProfile(Long userId,
+      UserTasteProfileCreateRequestDto dto) {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new NotFoundException("User not found"));
 
     AggregatedTasteProfile aggregated = balanceGameTagAggregator.aggregate(dto);
-    UserTasteProfileResult result = userTasteProfileService.generateProfile(dto,aggregated);
+    UserTasteProfileResult result = userTasteProfileService.generateProfile(dto, aggregated);
 
     userPreferenceTagRepository.deleteAllByUser_Id(userId);
 
@@ -62,6 +76,30 @@ public class UserTasteOnboardingService {
     user.setProfileSummary(result.getProfile_summary());
     user.setProfileVectorRef(vectorRef);
     return result;
+  }
+
+  public List<TrackSemanticSearchItemDto> searchWelcomeSongs(Long userId) {
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new NotFoundException("User not found"));
+    List<Float> vector=null;
+    try {
+      if ( user.getProfileVectorRef() != null ) {
+        QdrantRetrieveResponse profileResponse =
+            qdrantClient.retrieveUserProfilePoints(List.of(user.getProfileVectorRef()));
+
+        if (profileResponse != null
+            && profileResponse.getPoints() != null
+            && !profileResponse.getPoints().isEmpty()
+            && profileResponse.getPoints().get(0).getVector() != null) {
+          vector = profileResponse.getPoints().get(0).getVector();
+        }
+      }
+    } catch (Exception e) {
+      log.info(e.getMessage());
+      vector = null;
+    }
+    QdrantSearchResponse response = qdrantClient.searchSong(vector,10);
+    return trackSemanticSearchService.rerank(response.getResult().getPoints(), userId,3);
   }
 
   private void addTags(
