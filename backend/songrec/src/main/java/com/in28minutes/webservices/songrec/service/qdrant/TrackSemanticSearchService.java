@@ -2,7 +2,6 @@ package com.in28minutes.webservices.songrec.service.qdrant;
 
 import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.domain.user.User;
-import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.TrackSemanticSearchItemDto;
 import com.in28minutes.webservices.songrec.integration.openai.dto.TrackSearchQueryAnalysisResult;
 import com.in28minutes.webservices.songrec.integration.qdrant.client.QdrantClient;
@@ -10,12 +9,16 @@ import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantPoint;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantRetrieveResponse;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse.Point;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QueryEmbeddingPayload;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.RerankedCandidate;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.SongPayload;
+import com.in28minutes.webservices.songrec.repository.RequestTrackRepository;
 import com.in28minutes.webservices.songrec.repository.TrackLikeRepository;
 import com.in28minutes.webservices.songrec.repository.TrackRepository;
 import com.in28minutes.webservices.songrec.repository.UserRepository;
 import com.in28minutes.webservices.songrec.repository.projection.LikedTrackRow;
+import com.in28minutes.webservices.songrec.repository.projection.RequestTrackFeedbackRow;
+import com.in28minutes.webservices.songrec.service.RequestTrackService;
 import com.in28minutes.webservices.songrec.service.TrackService;
 import com.in28minutes.webservices.songrec.service.openai.EmbeddingService;
 import com.in28minutes.webservices.songrec.service.openai.TrackSearchQueryAnalysisService;
@@ -41,49 +44,82 @@ public class TrackSemanticSearchService {
   private final TrackLikeRepository trackLikeRepository;
   private final UserRepository userRepository;
   private final TrackService trackService;
+  private final RequestTrackRepository requestTrackRepository;
+  private final RequestTrackService requestTrackService;
 
-  public List<TrackSemanticSearchItemDto> search(Long userId, String query, int limit) {
+  public List<TrackSemanticSearchItemDto> search(Long userId, Long requestId, String query,
+      int limit) {
 
     // query 분석
     TrackSearchQueryAnalysisResult analysis =
         trackSearchQueryAnalysisService.analyze(query);
 
     // qdrant 후보
-    List<Point> response = searchCandidates(analysis, 50);
+    List<Float> queryVector = buildQueryVectorAndUpsert(requestId, analysis);
+    List<Point> response = searchCandidates(queryVector, 50);
 
     // 재정렬
     if (response == null || response.isEmpty()) {
       return null;
     }
     List<RerankedCandidate> selectedCandidates = selectRerankedCandidates(
-        response, userId);
+        queryVector, response, userId);
 
     return rerank(selectedCandidates, limit);
   }
 
-  public List<TrackSemanticSearchItemDto> rerank(List<RerankedCandidate> selectedCandidates,
-      int limit) {
-    List<TrackSemanticSearchItemDto> results = new ArrayList<>();
-
-    selectedCandidates.sort((a, b) -> Double.compare(b.getFinalScore(), a.getFinalScore()));
-    selectedCandidates.stream()
-        .limit(limit)
-        .forEach(
-            c -> results.add(TrackSemanticSearchItemDto.from(c.getTrack(), c.getFinalScore())));
-
-    return results;
+  private String buildSearchText(TrackSearchQueryAnalysisResult result) {
+    return String.format(
+        "mood: %s, scene: %s, texture: %s, genre: %s. description: %s.",
+        safeJoin(result.getMood_tags()),
+        safeJoin(result.getScene_tags()),
+        safeJoin(result.getTexture_tags()),
+        safeJoin(result.getGenre_tags()),
+        nullToEmpty(result.getShort_description())
+    ).trim().replaceAll("\\s+", " ");
   }
 
-  public List<RerankedCandidate> selectRerankedCandidates(List<Point> response, Long userId) {
+  private List<Float> buildQueryVectorAndUpsert(Long requestId,
+      TrackSearchQueryAnalysisResult queryAnalysisResult) {
+    String searchText = buildSearchText(queryAnalysisResult);
+    List<Float> vector = embeddingService.embedText(searchText);
+
+    QueryEmbeddingPayload payload = QueryEmbeddingPayload.builder()
+        .requestId(requestId)
+        .queryText(searchText).build();
+
+    QdrantPoint point = QdrantPoint.builder()
+        .id(requestId)
+        .vector(vector)
+        .payload(payload).build();
+    qdrantClient.upsertQueryEmbeddingPoint(point);
+
+    return vector;
+  }
+
+  public List<Point> searchCandidates(List<Float> vector,
+      int limit) {
+    // qdrant 후보
+    QdrantSearchResponse response = qdrantClient.searchSong(vector, limit);
+    response.getResult().getPoints().stream().map(r -> (SongPayload) r.getPayload())
+        .forEach(p -> log.info("후보곡:{}", p.getTitle()));
+
+    return response.getResult().getPoints();
+  }
+
+  public List<RerankedCandidate> selectRerankedCandidates(List<Float> queryVector,
+      List<Point> response, Long userId) {
 
     User user = userRepository.findById(userId).orElse(null);
 
+    // 좋아하는 track vector들의 평균
     List<Float> likedAverageVector = null;
     try {
       likedAverageVector = likedAverageVector(userId);
     } catch (Exception e) {
     }
 
+    // 프로필 vector
     List<Float> profileVector = null;
     try {
       if (user != null && user.getProfileVectorRef() != null) {
@@ -101,9 +137,22 @@ public class TrackSemanticSearchService {
       profileVector = null;
     }
 
+    // 과거 유사한 query vector들의 평균
+    QdrantSearchResponse queryResponse = qdrantClient.searchQuery(queryVector, 30);
+    List<Long> queryRequestIds = queryResponse.getResult().getPoints().stream().map(Point::getId)
+        .toList();
+
     List<Long> trackIds = response.stream().map(Point::getId).toList();
-    Map<Long, Track> trackMap = trackRepository.findAllByIdIn(trackIds).stream()
-        .collect(Collectors.toMap(Track::getId, Function.identity()));
+    Map<Long, Track> trackMap = trackRepository.findAllByIdIn(trackIds).stream().collect(
+        Collectors.toMap(Track::getId, Function.identity()));
+
+    // requestId로 score(sim) 찾기
+    Map<Long, Double> requestSimiarityMap = queryResponse.getResult().getPoints().stream().collect(
+        Collectors.toMap(Point::getId, p->p.getScore()==null?0.0:p.getScore()));
+    // trackId로 row 찾기
+    Map<Long, List<RequestTrackFeedbackRow>> feedbackRowByTrackId = requestTrackRepository.findFeedbackRowByRequestIdsAndTrackIds(
+            queryRequestIds, trackIds).stream()
+        .collect(Collectors.groupingBy(RequestTrackFeedbackRow::getTrackId));
 
     List<RerankedCandidate> selectedCandidates = new ArrayList<>();
     List<Point> filteredPoints = new ArrayList<>();
@@ -111,15 +160,16 @@ public class TrackSemanticSearchService {
       if (candidate.getVector() == null) {
         continue;
       }
-      boolean tooSimilar = false;
 
+      // 유사한 트랙들 걸러내기
+      boolean tooSimilar = false;
       for (Point filteredPoint : filteredPoints) {
         if (filteredPoint.getVector() == null) {
           continue;
         }
 
         double sim = cosineSimilarity(candidate.getVector(), filteredPoint.getVector());
-        if (sim > 0.9) {
+        if (sim > 0.95) {
           tooSimilar = true;
           break;
         }
@@ -130,27 +180,51 @@ public class TrackSemanticSearchService {
 
       double qdrantScore = candidate.getScore() == null ? 0.0 : candidate.getScore();
 
-      Long trackId = trackMap.get(candidate.getId()).getId();
-      Track track = trackMap.get(trackId);
+      Track track = trackMap.get(candidate.getId());
       if (track == null) {
         continue;
       }
+      Long trackId = track.getId();
 
+      // 인기도 계산
       Long likedCount = trackLikeRepository.countByTrackId(trackId);
       double popularityScore = normalizePopularity(likedCount);
 
+      // 사용자 선호 유사도 계산
       double likedScore = 0.0;
       if (likedAverageVector != null && candidate.getVector() != null) {
         likedScore = cosineSimilarity(candidate.getVector(), likedAverageVector);
       }
 
+      // 사용자 프로필(취향) 유사도 계산
       double profileScore = 0.0;
       if (profileVector != null) {
         profileScore = cosineSimilarity(candidate.getVector(), profileVector);
       }
 
+      // 과거 별점 피드백 반영
+      double adjustedFeedbackScore=0.0;
+      List<RequestTrackFeedbackRow> feedbackRows = feedbackRowByTrackId.get(trackId);
+      double weightedSum=0.0;
+      double weightSum=0.0;
+      for(RequestTrackFeedbackRow feedbackRow : feedbackRows){
+        Double sim = requestSimiarityMap.get(feedbackRow.getTrackId());
+        if(sim==null||sim<=0.0) continue;
+
+        double avgRating = feedbackRow.getAvgRating();
+        double normalized = (avgRating - 3.0) / 2.0;
+        double confidence = Math.min(1.0, Math.log(1 + feedbackRow.getRatingCount()) / Math.log(20));
+        double adjustedFeedback = normalized * confidence;
+
+        weightedSum+=(sim*adjustedFeedback);
+        weightSum+=sim;
+      }
+
+      if(weightedSum>0.0) adjustedFeedbackScore =weightedSum/weightSum;
+
       double finalScore =
-          0.55 * qdrantScore + 0.20 * profileScore + 0.15 * likedScore + 0.10 * popularityScore;
+          0.60 * qdrantScore + 0.10 * profileScore + 0.10 * likedScore + 0.05 * popularityScore
+              + 0.15 * adjustedFeedbackScore;
       filteredPoints.add(candidate);
       selectedCandidates.add(new RerankedCandidate(candidate, track, finalScore));
     }
@@ -158,17 +232,24 @@ public class TrackSemanticSearchService {
     return selectedCandidates;
   }
 
-  public List<Point> searchCandidates(TrackSearchQueryAnalysisResult queryAnalysisResult,
+
+  public List<TrackSemanticSearchItemDto> rerank(List<RerankedCandidate> selectedCandidates,
       int limit) {
-    // 임베딩
+    List<TrackSemanticSearchItemDto> results = new ArrayList<>();
+
+    selectedCandidates.sort((a, b) -> Double.compare(b.getFinalScore(), a.getFinalScore()));
+    selectedCandidates.stream()
+        .limit(limit)
+        .forEach(
+            c -> results.add(TrackSemanticSearchItemDto.from(c.getTrack(), c.getFinalScore())));
+
+    return results;
+  }
+
+
+  public List<Float> buildQueryVector(TrackSearchQueryAnalysisResult queryAnalysisResult) {
     String searchText = buildSearchText(queryAnalysisResult);
-    List<Float> vector = embeddingService.embedText(searchText);
-
-    // qdrant 후보
-    QdrantSearchResponse response = qdrantClient.searchSong(vector, limit);
-    response.getResult().getPoints().forEach(r -> log.info("후보곡:{}", r.getPayload().getTitle()));
-
-    return response.getResult().getPoints();
+    return embeddingService.embedText(searchText);
   }
 
   private double normalizePopularity(Long likedCount) {
@@ -190,42 +271,7 @@ public class TrackSemanticSearchService {
       return null;
     }
 
-    List<QdrantPoint> likedPoints = new ArrayList<>();
-
-    for (Long trackId : likedTracks) {
-      QdrantRetrieveResponse retrieveResult = qdrantClient.retrievePoints(List.of(trackId));
-      List<QdrantPoint> points = retrieveResult != null ? retrieveResult.getResult() : null;
-
-      if (points == null || points.isEmpty()) {
-        Track track = trackRepository.findById(trackId).orElse(null);
-        if (track == null) {
-          continue;
-        }
-
-        TrackCreateRequestDto trackCreateRequestDto = TrackCreateRequestDto.builder()
-            .spotifyId(track.getSpotifyId())
-            .name(track.getName())
-            .artist(track.getArtist())
-            .album(track.getAlbum())
-            .imageUrl(track.getImageUrl())
-            .durationMs(track.getDurationMs())
-            .build();
-
-        trackService.upsertTrackVector(trackCreateRequestDto, trackId);
-
-        QdrantRetrieveResponse retryResult = qdrantClient.retrievePoints(List.of(trackId));
-        List<QdrantPoint> retryPoints = retryResult != null ? retryResult.getResult() : null;
-
-        if (retryPoints == null || retryPoints.isEmpty()) {
-          log.warn("Failed to retrieve point from Qdrant after upsert. trackId={}", trackId);
-          continue;
-        }
-
-        likedPoints.add(retryPoints.get(0));
-      } else {
-        likedPoints.add(points.get(0));
-      }
-    }
+    List<QdrantPoint> likedPoints = qdrantClient.retrievePoints(likedTracks).getResult();
 
     log.info("likedTrackCount={}", likedTracks.size());
     log.info("likedPointCount={}", likedPoints.size());
@@ -295,34 +341,22 @@ public class TrackSemanticSearchService {
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
-
-  private Long extractTrackId(QdrantSearchResponse.Point point) {
-    if (point.getPayload() != null && point.getPayload().getTrackId() != null) {
-      return point.getPayload().getTrackId();
-    }
-
-    Object id = point.getId();
-    if (id instanceof Number number) {
-      return number.longValue();
-    }
-
-    try {
-      return Long.parseLong(String.valueOf(id));
-    } catch (Exception e) {
-      return null;
-    }
-  }
-
-  private String buildSearchText(TrackSearchQueryAnalysisResult result) {
-    return String.format(
-        "mood: %s, scene: %s, texture: %s, genre: %s. description: %s.",
-        safeJoin(result.getMood_tags()),
-        safeJoin(result.getScene_tags()),
-        safeJoin(result.getTexture_tags()),
-        safeJoin(result.getGenre_tags()),
-        nullToEmpty(result.getShort_description())
-    ).trim().replaceAll("\\s+", " ");
-  }
+//  private Long extractTrackId(QdrantSearchResponse.Point point) {
+//    if (point.getPayload() != null && point.getPayload().getTrackId() != null) {
+//      return point.getPayload().getTrackId();
+//    }
+//
+//    Object id = point.getId();
+//    if (id instanceof Number number) {
+//      return number.longValue();
+//    }
+//
+//    try {
+//      return Long.parseLong(String.valueOf(id));
+//    } catch (Exception e) {
+//      return null;
+//    }
+//  }
 
   private String safeJoin(List<String> values) {
     return values == null || values.isEmpty() ? "" : String.join(", ", values);

@@ -2,6 +2,8 @@ package com.in28minutes.webservices.songrec.repository;
 
 import com.in28minutes.webservices.songrec.domain.request.RequestTrack;
 import com.in28minutes.webservices.songrec.domain.track.Track;
+import com.in28minutes.webservices.songrec.repository.projection.RequestTrackFeedbackRow;
+import com.in28minutes.webservices.songrec.repository.projection.RecommendedTrackRow;
 import com.in28minutes.webservices.songrec.repository.projection.RequestTrackCountRow;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -33,4 +35,38 @@ public interface RequestTrackRepository extends JpaRepository<RequestTrack, Long
       """)
   List<RequestTrackCountRow> countActiveTracksByRequestIds(
       @Param("requestIds") List<Long> requestIds);
+
+  @Query("""
+      select
+      t.id as trackId,
+      t.spotifyId as spotifyId,
+      t.name as trackName,
+      t.artist as artistName,
+      t.album as albumName,
+      t.imageUrl as imageUrl,
+      t.durationMs as durationMs,
+      rtr.rating as rating
+      from RequestTrack rt
+      join rt.track t
+      left join RequestTrackRating rtr
+      on rtr.requestTrack = rt and rtr.user.id = :userId
+      where rt.request.id = :requestId
+      """)
+  List<RecommendedTrackRow> findAllRecommendedTracksByRequestId(@Param("userId") Long userId,@Param("requestId")Long requestId);
+
+  @Query("""
+      select
+      rt.track.id as trackId,
+      rt.request.id as requestId,
+      rt.avgRating as avgRating,
+      rt.ratingCount as ratingCount
+      from RequestTrack rt
+      where rt.request.id in :requestIds
+      and rt.track.id in :trackIds
+      and rt.trackDeleted = false
+      and rt.avgRating is not null
+      and rt.ratingCount is not null
+      and rt.ratingCount >0
+      """)
+  List<RequestTrackFeedbackRow> findFeedbackRowByRequestIdsAndTrackIds(@Param("requestIds") List<Long> requestIds,@Param("trackIds") List<Long> trackIds);
 }

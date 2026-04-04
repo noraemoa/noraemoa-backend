@@ -6,6 +6,7 @@ import com.in28minutes.webservices.songrec.evaluation.metrics.TagRelevanceCalcul
 import com.in28minutes.webservices.songrec.integration.openai.dto.TrackSearchQueryAnalysisResult;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse.Point;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.RerankedCandidate;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.SongPayload;
 import com.in28minutes.webservices.songrec.service.openai.TrackSearchQueryAnalysisService;
 import com.in28minutes.webservices.songrec.service.qdrant.TrackSemanticSearchService;
 import java.util.HashSet;
@@ -66,14 +67,15 @@ public class RecommendationEvaluator {
     List<Float> userLikedAvgVector = trackSemanticSearchService.likedAverageVector(userId);
 
     //Precision@10
-    List<Point> candidates = trackSemanticSearchService.searchCandidates(queryResult, 30);
+    List<Float> queryVector=trackSemanticSearchService.buildQueryVector(queryResult);
+    List<Point> candidates = trackSemanticSearchService.searchCandidates(queryVector, 50);
 
     List<Point> beforeTop10 = candidates.stream().limit(10).toList();
     double beforeRerankPrecision = tagRelevanceCalculator.calculatePrecision(
         queryTags, beforeTop10);
 
     List<RerankedCandidate> selectedCandidates = trackSemanticSearchService.selectRerankedCandidates(
-        candidates, userId);
+        queryVector,candidates, userId);
     selectedCandidates.sort((a, b) -> Double.compare(b.getFinalScore(), a.getFinalScore()));
 
     List<Point> afterTop10 = selectedCandidates.stream().limit(10)
@@ -117,12 +119,14 @@ public class RecommendationEvaluator {
     log.info("query={}", query);
     log.info("beforeTop10={}",
         beforeTop10.stream()
-            .map(p -> p.getPayload().getTitle())
+            .map(p ->(SongPayload) p.getPayload())
+            .map(SongPayload::getTitle)
             .toList());
 
     log.info("afterTop10={}",
         afterTop10.stream()
-            .map(p -> p.getPayload().getTitle())
+            .map(p ->(SongPayload)p.getPayload())
+            .map(SongPayload::getTitle)
             .toList());
     log.info("beforePrecision@10={}", beforeRerankPrecision);
     log.info("afterPrecision@10={}", afterRerankPrecision);

@@ -22,6 +22,6 @@ public class QdrantSearchResponse {
     private Long id;
     private Double score;
     private List<Float> vector;
-    private SongPayload payload;
+    private Object payload;
   }
 }

@@ -2,17 +2,18 @@ package com.in28minutes.webservices.songrec.service;
 
 import com.in28minutes.webservices.songrec.domain.request.Request;
 import com.in28minutes.webservices.songrec.domain.request.RequestTrack;
+import com.in28minutes.webservices.songrec.domain.request.RequestTrackRating;
 import com.in28minutes.webservices.songrec.domain.track.Track;
+import com.in28minutes.webservices.songrec.domain.user.User;
 import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
-import com.in28minutes.webservices.songrec.dto.response.track.TrackResponseDto;
-import com.in28minutes.webservices.songrec.dto.response.track.TrackResponseDto;
+import com.in28minutes.webservices.songrec.dto.response.request.RecommendedTrackResponseDto;
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
-import com.in28minutes.webservices.songrec.integration.spotify.dto.SpotifySearchResponse;
-import com.in28minutes.webservices.songrec.integration.spotify.dto.SpotifyTrackResponseDto;
-import com.in28minutes.webservices.songrec.integration.spotify.dto.SpotifyTrackResponseDto.SpotifyTrack;
 import com.in28minutes.webservices.songrec.repository.RequestRepository;
+import com.in28minutes.webservices.songrec.repository.RequestTrackRatingRepository;
 import com.in28minutes.webservices.songrec.repository.RequestTrackRepository;
 import com.in28minutes.webservices.songrec.repository.TrackLikeRepository;
+import com.in28minutes.webservices.songrec.repository.UserRepository;
+import com.in28minutes.webservices.songrec.repository.projection.RecommendedTrackRow;
 import com.in28minutes.webservices.songrec.repository.projection.RequestTrackCountRow;
 import java.util.HashSet;
 import java.util.Set;
@@ -28,8 +29,10 @@ public class RequestTrackService {
 
   private final RequestTrackRepository requestTrackRepository;
   private final TrackService trackService;
-  private final PlaylistTrackService playlistTrackService;
   private final RequestRepository requestRepository;
+  private final UserRepository userRepository;
+  private final RequestTrackRatingRepository requestTrackRatingRepository;
+  private final TrackLikeRepository trackLikeRepository;
 
   @Transactional
   public RequestTrack getActiveRequestTrack(Long userId, Long requestId, Long trackId) {
@@ -40,11 +43,17 @@ public class RequestTrackService {
   }
 
   @Transactional(readOnly = true)
-  public List<TrackResponseDto> getTracksByRequest(Long userId,Long requestId) {
+  public List<RecommendedTrackResponseDto> getTracksByRequest(Long userId, Long requestId) {
+    List<RecommendedTrackRow> recommendedTracks = requestTrackRepository
+        .findAllRecommendedTracksByRequestId(userId, requestId);
 
-    List<Track> tracks= requestTrackRepository.findActiveTracksByRequestId(requestId);
-    return playlistTrackService.getTracks(tracks,userId);
-    }
+    if(recommendedTracks.isEmpty()) return List.of();
+
+    List<String> trackIds = recommendedTracks.stream().map(RecommendedTrackRow::getSpotifyId).toList();
+    Set<String> likedSpotifyIds = new HashSet<>(
+        trackLikeRepository.findLikedSpotifyIds(userId, trackIds));
+    return recommendedTracks.stream().map(t->RecommendedTrackResponseDto.from(t,likedSpotifyIds)).toList();
+  }
 
   @Transactional(readOnly = true)
   public List<RequestTrackCountRow> getTrackCountsByRequests(List<Long> requestIds) {
@@ -58,23 +67,17 @@ public class RequestTrackService {
         .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
     Track track = trackService.getTrack(trackId);
 
-    return requestTrackRepository.findByRequest_IdAndTrack_Id(requestId, trackId)
-        .map(existing -> {
-          if (Boolean.TRUE.equals(existing.getTrackDeleted())) {
-            existing.setTrackDeleted(false);
-          }
-          return existing;
-        })
-        .orElseGet(() -> requestTrackRepository.save(
-            RequestTrack.builder()
-                .request(request)
-                .track(track)
-                .trackDeleted(false).build()));
+    return requestTrackRepository.findByRequest_IdAndTrack_Id(requestId, trackId).map(existing -> {
+      if (Boolean.TRUE.equals(existing.getTrackDeleted())) {
+        existing.setTrackDeleted(false);
+      }
+      return existing;
+    }).orElseGet(() -> requestTrackRepository.save(
+        RequestTrack.builder().request(request).track(track).trackDeleted(false).build()));
   }
 
   @Transactional
-  public RequestTrack addSpotifyTrackToRequest( Long requestId,
-      TrackCreateRequestDto dto) {
+  public RequestTrack addSpotifyTrackToRequest(Long requestId, TrackCreateRequestDto dto) {
     Request request = requestRepository.findByIdAndDeletedFalse(requestId)
         .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
     Track track = trackService.findOrCreateTrack(dto);
@@ -84,25 +87,34 @@ public class RequestTrackService {
             existing.setTrackDeleted(false);
           }
           return existing;
-        })
-        .orElseGet(() -> requestTrackRepository.save(
-            RequestTrack.builder()
-                .request(request)
-                .track(track)
-                .trackDeleted(false).build()));
+        }).orElseGet(() -> requestTrackRepository.save(
+            RequestTrack.builder().request(request).track(track).trackDeleted(false).build()));
   }
 
   @Transactional
-  public RequestTrack rateTrack(Long userId, Long requestId, Long trackId, Integer rating) {
-    requestRepository.findByIdAndUserIdAndDeletedFalse(requestId, userId)
-        .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
+  public RequestTrackRating rateTrack(Long userId, Long requestId, Long trackId, Integer rating) {
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
     RequestTrack rt = requestTrackRepository.findByRequest_IdAndTrack_Id(requestId, trackId)
         .orElseThrow(() -> new NotFoundException("해당 요청에 트랙이 없습니다."));
     if (rating < 1 || rating > 5) {
       throw new IllegalArgumentException("rating은 1~5");
     }
-    rt.setRating(rating);
-    return rt;
+    Double avgRating = rt.getAvgRating();
+    Integer ratingCount = rt.getRatingCount();
+    rt.setAvgRating((avgRating*ratingCount+rating)/ratingCount+1);
+    rt.setRatingCount(ratingCount+1);
+
+    RequestTrackRating requestTrackRating = RequestTrackRating.builder().requestTrack(rt).user(user).rating(rating).build();
+    return requestTrackRatingRepository.save(requestTrackRating);
+  }
+
+  public RequestTrackRating getRequestTrackRating(Long userId, Long requestId, Long trackId) {
+    RequestTrack rt = requestTrackRepository.findByRequest_IdAndTrack_Id(requestId, trackId)
+        .orElseThrow(() -> new NotFoundException("해당 요청에 트랙이 없습니다."));
+    return requestTrackRatingRepository.findByRequestTrack_IdAndUser_Id(rt.getId(), userId)
+        .orElseThrow(() -> new NotFoundException("해당 트랙에 대한 정보를 찾을 수 없습니다."));
+
   }
 
   @Transactional

@@ -85,7 +85,7 @@ public class QdrantClient {
     return upsertPoints(qdrantProperties.getCollectionName(), List.of(point));
   }
 
-  public QdrantSearchResponse searchSong(List<Float> vector, int limit) {
+  public QdrantSearchResponse QdrantSearchMethod(List<Float> vector, int limit,String collectionName) {
     QdrantSearchRequest request = QdrantSearchRequest.builder()
         .query(vector)
         .limit(limit)
@@ -93,11 +93,19 @@ public class QdrantClient {
         .with_vector(true).build();
 
     return qdrantWebClient.post()
-        .uri("/collections/{collectionName}/points/query", qdrantProperties.getCollectionName())
+        .uri("/collections/{collectionName}/points/query", collectionName)
         .bodyValue(request)
         .retrieve()
         .bodyToMono(QdrantSearchResponse.class)
         .block();
+  }
+
+  public QdrantSearchResponse searchSong(List<Float> vector, int limit) {
+    return QdrantSearchMethod(vector, limit, qdrantProperties.getCollectionName());
+  }
+
+  public QdrantSearchResponse searchQuery(List<Float> vector, int limit) {
+    return QdrantSearchMethod(vector, limit, "query_embeddings");
   }
 
   public QdrantRetrieveResponse retrievePoints(List<Long> ids) {
@@ -130,5 +138,23 @@ public class QdrantClient {
 
   public String upsertUserProfilePoint(QdrantPoint point) {
     return upsertPoints("user_profiles", List.of(point));
+  }
+
+  public QdrantRetrieveResponse retrieveQueryEmbeddingPoints(List<Long> ids) {
+    QdrantRetrieveRequest request = QdrantRetrieveRequest.builder()
+        .ids(ids)
+        .with_payload(true)
+        .with_vector(true).build();
+
+    return qdrantWebClient.post()
+        .uri("/collections/{collectionName}/points", "query_embeddings")
+        .bodyValue(request)
+        .retrieve()
+        .bodyToMono(QdrantRetrieveResponse.class)
+        .block();
+  }
+
+  public String upsertQueryEmbeddingPoint(QdrantPoint point) {
+    return upsertPoints("query_embeddings", List.of(point));
   }
 }

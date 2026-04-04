@@ -33,6 +33,9 @@ public class RequestTrack {
     @Column(nullable = false)
     private Boolean trackDeleted = false;
 
-    @Min(1) @Max(5)
-    private Integer rating;
+    @Column(name = "avg_rating")
+    private Double avgRating;
+
+    @Column(name = "rating_count")
+    private Integer ratingCount;
 }
