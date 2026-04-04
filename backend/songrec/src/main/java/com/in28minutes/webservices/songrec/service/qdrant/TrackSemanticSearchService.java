@@ -2,17 +2,21 @@ package com.in28minutes.webservices.songrec.service.qdrant;
 
 import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.domain.user.User;
+import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.TrackSemanticSearchItemDto;
 import com.in28minutes.webservices.songrec.integration.openai.dto.TrackSearchQueryAnalysisResult;
 import com.in28minutes.webservices.songrec.integration.qdrant.client.QdrantClient;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantPoint;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantRetrieveResponse;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse.Point;
-import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse.QdrantRetrieveResponse;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.RerankedCandidate;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.SongPayload;
 import com.in28minutes.webservices.songrec.repository.TrackLikeRepository;
 import com.in28minutes.webservices.songrec.repository.TrackRepository;
 import com.in28minutes.webservices.songrec.repository.UserRepository;
 import com.in28minutes.webservices.songrec.repository.projection.LikedTrackRow;
+import com.in28minutes.webservices.songrec.service.TrackService;
 import com.in28minutes.webservices.songrec.service.openai.EmbeddingService;
 import com.in28minutes.webservices.songrec.service.openai.TrackSearchQueryAnalysisService;
 import java.util.ArrayList;
@@ -29,79 +33,90 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class TrackSemanticSearchService {
+
   private final TrackSearchQueryAnalysisService trackSearchQueryAnalysisService;
   private final EmbeddingService embeddingService;
   private final QdrantClient qdrantClient;
   private final TrackRepository trackRepository;
   private final TrackLikeRepository trackLikeRepository;
   private final UserRepository userRepository;
+  private final TrackService trackService;
 
-  public List<TrackSemanticSearchItemDto> search(Long userId,String query,int limit){
+  public List<TrackSemanticSearchItemDto> search(Long userId, String query, int limit) {
 
     // query 분석
     TrackSearchQueryAnalysisResult analysis =
         trackSearchQueryAnalysisService.analyze(query);
 
-    // 임베딩
-    String searchText = buildSearchText(analysis);
-    List<Float> vector = embeddingService.embedText(searchText);
-
     // qdrant 후보
-    QdrantSearchResponse response = qdrantClient.searchSong(vector,10);
-    response.getResult().getPoints().forEach(r->log.info("후보곡:{}", r.getPayload().getTitle()));
+    List<Point> response = searchCandidates(analysis, 50);
 
     // 재정렬
-    return rerank(response.getResult().getPoints(), userId,limit);
+    if (response == null || response.isEmpty()) {
+      return null;
+    }
+    List<RerankedCandidate> selectedCandidates = selectRerankedCandidates(
+        response, userId);
+
+    return rerank(selectedCandidates, limit);
   }
 
-  public List<TrackSemanticSearchItemDto> rerank(List<Point> response,Long userId, int limit){
+  public List<TrackSemanticSearchItemDto> rerank(List<RerankedCandidate> selectedCandidates,
+      int limit) {
     List<TrackSemanticSearchItemDto> results = new ArrayList<>();
-    if(response ==null||response.isEmpty()){
-      return results;
-    }
+
+    selectedCandidates.sort((a, b) -> Double.compare(b.getFinalScore(), a.getFinalScore()));
+    selectedCandidates.stream()
+        .limit(limit)
+        .forEach(
+            c -> results.add(TrackSemanticSearchItemDto.from(c.getTrack(), c.getFinalScore())));
+
+    return results;
+  }
+
+  public List<RerankedCandidate> selectRerankedCandidates(List<Point> response, Long userId) {
 
     User user = userRepository.findById(userId).orElse(null);
 
-    List<RerankedCandidate> selectedCandidates = new ArrayList<>();
-    List<Point> filteredPoints = new ArrayList<>();
-
-    List<Float> likedAverageVector =null;
-    try{
-      likedAverageVector=likedAverageVector(userId);
-    }catch (Exception e){
+    List<Float> likedAverageVector = null;
+    try {
+      likedAverageVector = likedAverageVector(userId);
+    } catch (Exception e) {
     }
 
-    List<Float> profileVector =null;
+    List<Float> profileVector = null;
     try {
-      if (user != null && user.getProfileVectorRef() != null ) {
+      if (user != null && user.getProfileVectorRef() != null) {
         QdrantRetrieveResponse profileResponse =
             qdrantClient.retrieveUserProfilePoints(List.of(user.getProfileVectorRef()));
 
         if (profileResponse != null
-            && profileResponse.getPoints() != null
-            && !profileResponse.getPoints().isEmpty()
-            && profileResponse.getPoints().get(0).getVector() != null) {
-          profileVector = profileResponse.getPoints().get(0).getVector();
+            && profileResponse.getResult() != null
+            && !profileResponse.getResult().isEmpty()
+            && profileResponse.getResult().get(0).getVector() != null) {
+          profileVector = profileResponse.getResult().get(0).getVector();
         }
       }
     } catch (Exception e) {
       profileVector = null;
     }
 
-
-    List<Long> trackIds=response.stream().map(Point::getId).toList();
-    Map<Long,Track> trackMap = trackRepository.findAllByIdIn(trackIds).stream()
+    List<Long> trackIds = response.stream().map(Point::getId).toList();
+    Map<Long, Track> trackMap = trackRepository.findAllByIdIn(trackIds).stream()
         .collect(Collectors.toMap(Track::getId, Function.identity()));
 
-    for(Point candidate:response){
-      if(candidate.getVector()==null){
+    List<RerankedCandidate> selectedCandidates = new ArrayList<>();
+    List<Point> filteredPoints = new ArrayList<>();
+    for (Point candidate : response) {
+      if (candidate.getVector() == null) {
         continue;
       }
-      boolean tooSimilar=false;
-
+      boolean tooSimilar = false;
 
       for (Point filteredPoint : filteredPoints) {
-        if(filteredPoint.getVector()==null) continue;
+        if (filteredPoint.getVector() == null) {
+          continue;
+        }
 
         double sim = cosineSimilarity(candidate.getVector(), filteredPoint.getVector());
         if (sim > 0.9) {
@@ -109,41 +124,51 @@ public class TrackSemanticSearchService {
           break;
         }
       }
-      if(tooSimilar){
+      if (tooSimilar) {
         continue;
       }
 
-      double qdrantScore=candidate.getScore()==null?0.0:candidate.getScore();
+      double qdrantScore = candidate.getScore() == null ? 0.0 : candidate.getScore();
 
-      Long trackId=trackMap.get(candidate.getId()).getId();
+      Long trackId = trackMap.get(candidate.getId()).getId();
       Track track = trackMap.get(trackId);
-      if(track==null) continue;
+      if (track == null) {
+        continue;
+      }
 
       Long likedCount = trackLikeRepository.countByTrackId(trackId);
-      double popularityScore=normalizePopularity(likedCount);
+      double popularityScore = normalizePopularity(likedCount);
 
-      double likedScore=0.0;
+      double likedScore = 0.0;
       if (likedAverageVector != null && candidate.getVector() != null) {
         likedScore = cosineSimilarity(candidate.getVector(), likedAverageVector);
       }
 
-      double profileScore=0.0;
-      if(profileVector!=null){
+      double profileScore = 0.0;
+      if (profileVector != null) {
         profileScore = cosineSimilarity(candidate.getVector(), profileVector);
       }
 
-
-      double finalScore= 0.55*qdrantScore + 0.20*profileScore+ 0.15*likedScore +0.10*popularityScore;
+      double finalScore =
+          0.55 * qdrantScore + 0.20 * profileScore + 0.15 * likedScore + 0.10 * popularityScore;
       filteredPoints.add(candidate);
-      selectedCandidates.add(new RerankedCandidate(candidate,track,finalScore));
+      selectedCandidates.add(new RerankedCandidate(candidate, track, finalScore));
     }
 
-    selectedCandidates.sort((a,b)->Double.compare(b.getFinalScore(),a.getFinalScore()));
-    selectedCandidates.stream()
-        .limit(limit)
-        .forEach(c->results.add(TrackSemanticSearchItemDto.from(c.getTrack(),c.getFinalScore())));
+    return selectedCandidates;
+  }
 
-    return results;
+  public List<Point> searchCandidates(TrackSearchQueryAnalysisResult queryAnalysisResult,
+      int limit) {
+    // 임베딩
+    String searchText = buildSearchText(queryAnalysisResult);
+    List<Float> vector = embeddingService.embedText(searchText);
+
+    // qdrant 후보
+    QdrantSearchResponse response = qdrantClient.searchSong(vector, limit);
+    response.getResult().getPoints().forEach(r -> log.info("후보곡:{}", r.getPayload().getTitle()));
+
+    return response.getResult().getPoints();
   }
 
   private double normalizePopularity(Long likedCount) {
@@ -156,18 +181,63 @@ public class TrackSemanticSearchService {
     return Math.min(1.0, normalized);
   }
 
-  private List<Float> likedAverageVector(Long userId){
+  public List<Float> likedAverageVector(Long userId) {
     List<Long> likedTracks = trackLikeRepository.findLikedTracks(userId).stream()
-        .map(LikedTrackRow::getTrackId).toList();
+        .map(LikedTrackRow::getTrackId)
+        .toList();
 
-    if(likedTracks.isEmpty())
+    if (likedTracks.isEmpty()) {
       return null;
+    }
 
-    List<List<Float>> trackVectors = qdrantClient.retrievePoints(likedTracks).getPoints().stream()
-        .map(Point::getVector).filter(Objects::nonNull).toList();
+    List<QdrantPoint> likedPoints = new ArrayList<>();
 
-    if(trackVectors.isEmpty())
+    for (Long trackId : likedTracks) {
+      QdrantRetrieveResponse retrieveResult = qdrantClient.retrievePoints(List.of(trackId));
+      List<QdrantPoint> points = retrieveResult != null ? retrieveResult.getResult() : null;
+
+      if (points == null || points.isEmpty()) {
+        Track track = trackRepository.findById(trackId).orElse(null);
+        if (track == null) {
+          continue;
+        }
+
+        TrackCreateRequestDto trackCreateRequestDto = TrackCreateRequestDto.builder()
+            .spotifyId(track.getSpotifyId())
+            .name(track.getName())
+            .artist(track.getArtist())
+            .album(track.getAlbum())
+            .imageUrl(track.getImageUrl())
+            .durationMs(track.getDurationMs())
+            .build();
+
+        trackService.upsertTrackVector(trackCreateRequestDto, trackId);
+
+        QdrantRetrieveResponse retryResult = qdrantClient.retrievePoints(List.of(trackId));
+        List<QdrantPoint> retryPoints = retryResult != null ? retryResult.getResult() : null;
+
+        if (retryPoints == null || retryPoints.isEmpty()) {
+          log.warn("Failed to retrieve point from Qdrant after upsert. trackId={}", trackId);
+          continue;
+        }
+
+        likedPoints.add(retryPoints.get(0));
+      } else {
+        likedPoints.add(points.get(0));
+      }
+    }
+
+    log.info("likedTrackCount={}", likedTracks.size());
+    log.info("likedPointCount={}", likedPoints.size());
+
+    List<List<Float>> trackVectors = likedPoints.stream()
+        .map(QdrantPoint::getVector)
+        .filter(Objects::nonNull)
+        .toList();
+
+    if (trackVectors.isEmpty()) {
       return null;
+    }
 
     return averageVectors(trackVectors);
   }

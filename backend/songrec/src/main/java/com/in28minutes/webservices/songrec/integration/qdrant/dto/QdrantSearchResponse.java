@@ -7,12 +7,12 @@ import lombok.Setter;
 @Getter
 @Setter
 public class QdrantSearchResponse {
-  private QdrantRetrieveResponse result;
+  private QdrantResultResponse result;
   private String status;
 
   @Getter
   @Setter
-  public static class QdrantRetrieveResponse {
+  public static class QdrantResultResponse {
     private List<Point> points;
   }
 

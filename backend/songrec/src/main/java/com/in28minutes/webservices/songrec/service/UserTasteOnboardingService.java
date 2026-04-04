@@ -10,9 +10,9 @@ import com.in28minutes.webservices.songrec.dto.response.user.AggregatedTasteProf
 import com.in28minutes.webservices.songrec.global.exception.NotFoundException;
 import com.in28minutes.webservices.songrec.integration.openai.dto.UserTasteProfileResult;
 import com.in28minutes.webservices.songrec.integration.qdrant.client.QdrantClient;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantRetrieveResponse;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse;
-import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse.Point;
-import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse.QdrantRetrieveResponse;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.RerankedCandidate;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.UserProfilePayload;
 import com.in28minutes.webservices.songrec.repository.UserPreferenceTagRepository;
 import com.in28minutes.webservices.songrec.repository.UserRepository;
@@ -88,10 +88,10 @@ public class UserTasteOnboardingService {
             qdrantClient.retrieveUserProfilePoints(List.of(user.getProfileVectorRef()));
 
         if (profileResponse != null
-            && profileResponse.getPoints() != null
-            && !profileResponse.getPoints().isEmpty()
-            && profileResponse.getPoints().get(0).getVector() != null) {
-          vector = profileResponse.getPoints().get(0).getVector();
+            && profileResponse.getResult() != null
+            && !profileResponse.getResult().isEmpty()
+            && profileResponse.getResult().get(0).getVector() != null) {
+          vector = profileResponse.getResult().get(0).getVector();
         }
       }
     } catch (Exception e) {
@@ -99,7 +99,10 @@ public class UserTasteOnboardingService {
       vector = null;
     }
     QdrantSearchResponse response = qdrantClient.searchSong(vector,10);
-    return trackSemanticSearchService.rerank(response.getResult().getPoints(), userId,3);
+    List<RerankedCandidate> selectedCandidates = trackSemanticSearchService.selectRerankedCandidates(
+        response.getResult().getPoints(), userId);
+
+    return trackSemanticSearchService.rerank(selectedCandidates, 3);
   }
 
   private void addTags(
