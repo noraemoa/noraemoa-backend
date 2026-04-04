@@ -2,19 +2,19 @@ package com.in28minutes.webservices.songrec.controller;
 
 import static com.in28minutes.webservices.songrec.global.util.TextNormalizer.normalize;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.in28minutes.webservices.songrec.application.RatingApplicationService;
 import com.in28minutes.webservices.songrec.config.security.JwtPrincipal;
 import com.in28minutes.webservices.songrec.domain.keyword.Keyword;
 import com.in28minutes.webservices.songrec.domain.request.Request;
 import com.in28minutes.webservices.songrec.domain.request.RequestKeyword;
 import com.in28minutes.webservices.songrec.domain.request.RequestTrack;
+import com.in28minutes.webservices.songrec.domain.request.RequestTrackRating;
 import com.in28minutes.webservices.songrec.domain.track.Track;
 import com.in28minutes.webservices.songrec.dto.request.RequestCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.RequestTrackRatingRequestDto;
 import com.in28minutes.webservices.songrec.dto.request.TrackCreateRequestDto;
 import com.in28minutes.webservices.songrec.dto.response.*;
 import com.in28minutes.webservices.songrec.dto.response.keyword.KeywordResponseDto;
+import com.in28minutes.webservices.songrec.dto.response.request.RecommendedTrackResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.request.RequestFeedItemDto;
 import com.in28minutes.webservices.songrec.dto.response.request.RequestKeywordResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.request.RequestResponseDto;
@@ -22,8 +22,6 @@ import com.in28minutes.webservices.songrec.dto.response.request.RequestSummaryRe
 import com.in28minutes.webservices.songrec.dto.response.request.RequestTrackRatingResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.request.RequestTrackResponseDto;
 import com.in28minutes.webservices.songrec.dto.response.track.RecommendedTracksResponseDto;
-import com.in28minutes.webservices.songrec.dto.response.track.TrackResponseDto;
-import com.in28minutes.webservices.songrec.integration.spotify.dto.SpotifyTrackResponseDto;
 import com.in28minutes.webservices.songrec.service.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -52,7 +50,6 @@ public class RequestController {
   private final RequestTrackService requestTrackService;
   private final RequestKeywordService requestKeywordService;
   private final KeywordTrackService keywordTrackService;
-  private final RatingApplicationService ratingApplicationService;
   private final RequestFeedService requestFeedService;
   private final KeywordService keywordService;
   private final TrackService trackService;
@@ -61,7 +58,7 @@ public class RequestController {
   @PostMapping
   public ResponseEntity<RequestResponseDto> createRequest(
       @Valid @RequestBody RequestCreateRequestDto requestDto,
-      @AuthenticationPrincipal JwtPrincipal principal) throws JsonProcessingException {
+      @AuthenticationPrincipal JwtPrincipal principal) {
     RequestResponseDto request = requestService.createRequest(requestDto, principal.userId());
     return ResponseEntity.status(HttpStatus.CREATED).body(request);
   }
@@ -72,7 +69,7 @@ public class RequestController {
       @PathVariable @NotNull @Positive Long requestId) {
     Request request = requestService.updateRequest(requestDto, principal.userId(), requestId);
     List<String> keywords = requestService.readKeywords(request.getPromptKeywordsJson());
-    return RequestResponseDto.from(request, keywords.stream().map(k->Keyword.builder()
+    return RequestResponseDto.from(request, keywords.stream().map(k -> Keyword.builder()
         .rawText(k)
         .normalizedText(normalize(k)).build()).toList());
   }
@@ -91,25 +88,13 @@ public class RequestController {
     return requestList.stream().map(RequestSummaryResponseDto::from).toList();
   }
 
-  @GetMapping("/me/{requestId}")
-  public RequestResponseDto getMyRequest(@AuthenticationPrincipal JwtPrincipal principal,
-      @PathVariable @NotNull @Positive Long requestId) {
-
-    Request request = requestService.getActiveRequest(principal.userId(), requestId);
-    List<String> keywords = requestService.readKeywords(request.getPromptKeywordsJson());
-
-    return RequestResponseDto.from(request, keywords.stream().map(k->Keyword.builder()
-        .rawText(k)
-        .normalizedText(normalize(k)).build()).toList());
-  }
-
   @GetMapping("/{requestId}")
   public RequestResponseDto getRequestFeed(@PathVariable @NotNull @Positive Long requestId) {
 
     Request request = requestService.getRequestFeed(requestId);
     List<String> keywords = requestService.readKeywords(request.getPromptKeywordsJson());
 
-    return RequestResponseDto.from(request, keywords.stream().map(k->Keyword.builder()
+    return RequestResponseDto.from(request, keywords.stream().map(k -> Keyword.builder()
         .rawText(k)
         .normalizedText(normalize(k)).build()).toList());
   }
@@ -130,7 +115,7 @@ public class RequestController {
 
   // tracks
   @GetMapping("/{requestId}/tracks")
-  public List<TrackResponseDto> getTracksByRequest(@AuthenticationPrincipal JwtPrincipal principal,
+  public List<RecommendedTrackResponseDto> getTracksByRequest(@AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId) {
     return requestTrackService.getTracksByRequest(principal.userId(), requestId);
   }
@@ -166,9 +151,9 @@ public class RequestController {
       keywordTrackService.recommendTrack(keyword.getId(), rt.getTrack().getId());
     });
 
-    try{
-      trackService.ensureTrackIndexed(rt.getTrack(),dto);
-    }catch (Exception e){
+    try {
+      trackService.ensureTrackIndexed(rt.getTrack(), dto);
+    } catch (Exception e) {
       e.printStackTrace();
     }
 
@@ -199,9 +184,19 @@ public class RequestController {
       @PathVariable @NotNull @Positive Long requestId,
       @PathVariable @NotNull @Positive Long trackId,
       @Valid @RequestBody RequestTrackRatingRequestDto ratingDto) {
-    RequestTrack rt = ratingApplicationService.rateTrack(principal.userId(), requestId, trackId,
-        ratingDto.getRating());
-    return ResponseEntity.ok(RequestTrackRatingResponseDto.from(rt));
+    RequestTrackRating requestTrackRating = requestTrackService.rateTrack(
+        principal.userId(), requestId, trackId, ratingDto.getRating());
+    return ResponseEntity.ok(RequestTrackRatingResponseDto.from(requestTrackRating));
+  }
+
+  @GetMapping("/{requestId}/tracks/{trackId}")
+  public RequestTrackRatingResponseDto getRequestTrackRating(
+      @AuthenticationPrincipal JwtPrincipal principal,
+      @PathVariable @NotNull @Positive Long requestId,
+      @PathVariable @NotNull @Positive Long trackId) {
+    RequestTrackRating rtr = requestTrackService.getRequestTrackRating(principal.userId(),
+        requestId, trackId);
+    return RequestTrackRatingResponseDto.from(rtr);
   }
 
   @DeleteMapping("/{requestId}/tracks/{trackId}")
@@ -221,7 +216,7 @@ public class RequestController {
       @PathVariable @NotNull @Positive Long keywordId) {
     Request request = requestService.getRequestFeed(requestId);
     Keyword keyword = keywordService.getKeyword(keywordId);
-    RequestKeyword rk = requestKeywordService.addKeywordByRequest( request,
+    RequestKeyword rk = requestKeywordService.addKeywordByRequest(request,
         keyword);
     // 키워드를 추가했을 때 키워드와 연결된 track을 해당 request track에 추가
 //        List<Track> tracks = keywordTrackService.getTracksByKeyword(keywordId);

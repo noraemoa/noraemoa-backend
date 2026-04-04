@@ -2,6 +2,7 @@ package com.in28minutes.webservices.songrec.evaluation.metrics;
 
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse;
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchResponse.Point;
+import com.in28minutes.webservices.songrec.integration.qdrant.dto.SongPayload;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -37,9 +38,10 @@ public class TagRelevanceCalculator {
       return 0.0;
     }
     Set<String> songTags = new HashSet<>();
-    songTags.addAll(normalize(responseSong.getPayload().getMood_tags()));
-    songTags.addAll(normalize(responseSong.getPayload().getScene_tags()));
-    songTags.addAll(normalize(responseSong.getPayload().getTexture_tags()));
+    SongPayload songPayload = (SongPayload )responseSong.getPayload();
+    songTags.addAll(normalize(songPayload.getMood_tags()));
+    songTags.addAll(normalize(songPayload.getScene_tags()));
+    songTags.addAll(normalize(songPayload.getTexture_tags()));
 
     int totalTagCount = queryTags.size();
     int matchCount = 0;

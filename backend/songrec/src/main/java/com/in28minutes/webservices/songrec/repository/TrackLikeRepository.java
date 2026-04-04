@@ -8,38 +8,42 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface TrackLikeRepository extends JpaRepository<TrackLike, Long> {
-    Optional<TrackLike> findByUser_IdAndTrack_id(Long userId,Long trackId);
-    boolean existsByUser_IdAndTrack_Id(Long userId, Long trackId);
-    void deleteByUser_IdAndTrack_Id(Long userId, Long trackId);
-    @Query("""
-        select 
-        t.id as trackId,
-        t.name as name,
-        t.artist as artist,
-        t.album as album,
-        t.imageUrl as imageUrl,
-        tl.createdAt as createdAt
-        from TrackLike tl
-        join tl.track t
-        where tl.user.id = :userId
-        order by tl.createdAt desc
-        """)
-    List<LikedTrackRow> findLikedTracks(Long userId);
 
-    @Query("""
-select t.spotifyId
-from TrackLike tl
-join tl.track t
-where tl.user.id = :userId
-and t.spotifyId in :spotifyTrackIds
-""")
-    List<String>findLikedSpotifyIds(Long userId,List<String> spotifyTrackIds);
+  Optional<TrackLike> findByUser_IdAndTrack_id(Long userId, Long trackId);
 
-    @Query("""
-            select
-            count(tl)
-            from TrackLike tl
-            where tl.track.id = :trackId
-        """)
-    Long countByTrackId(Long trackId);
+  boolean existsByUser_IdAndTrack_Id(Long userId, Long trackId);
+
+  void deleteByUser_IdAndTrack_Id(Long userId, Long trackId);
+
+  @Query("""
+      select 
+      t.id as trackId,
+      t.name as name,
+      t.artist as artist,
+      t.album as album,
+      t.imageUrl as imageUrl,
+      tl.createdAt as createdAt
+      from TrackLike tl
+      join tl.track t
+      where tl.user.id = :userId
+      order by tl.createdAt desc
+      """)
+  List<LikedTrackRow> findLikedTracks(Long userId);
+
+  @Query("""
+      select t.spotifyId
+      from TrackLike tl
+      join tl.track t
+      where tl.user.id = :userId
+      and t.spotifyId in :spotifyTrackIds
+      """)
+  List<String> findLikedSpotifyIds(Long userId, List<String> spotifyTrackIds);
+
+  @Query("""
+          select
+          count(tl)
+          from TrackLike tl
+          where tl.track.id = :trackId
+      """)
+  Long countByTrackId(Long trackId);
 }

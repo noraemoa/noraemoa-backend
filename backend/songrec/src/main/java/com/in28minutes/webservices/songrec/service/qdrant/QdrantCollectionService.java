@@ -18,4 +18,8 @@ public class QdrantCollectionService {
   public void ensureUserProfileCollection(){
     qdrantClient.createCollectionIfNotExist("user_profiles");
   }
+
+  public void ensureQueryEmbeddingCollection(){
+    qdrantClient.createCollectionIfNotExist("query_embeddings");
+  }
 }

@@ -12,6 +12,6 @@ public class QdrantInitializer implements CommandLineRunner {
 
   @Override
   public void run(String... args){
-    qdrantCollectionService.ensureUserProfileCollection();
+    qdrantCollectionService.ensureQueryEmbeddingCollection();
   }
 }

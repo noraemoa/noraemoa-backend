@@ -100,7 +100,7 @@ public class UserTasteOnboardingService {
     }
     QdrantSearchResponse response = qdrantClient.searchSong(vector,10);
     List<RerankedCandidate> selectedCandidates = trackSemanticSearchService.selectRerankedCandidates(
-        response.getResult().getPoints(), userId);
+        vector,response.getResult().getPoints(), userId);
 
     return trackSemanticSearchService.rerank(selectedCandidates, 3);
   }

@@ -140,7 +140,7 @@ public class RequestService {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new NotFoundException("User not found"));
 
-    // 프롬프트 title 및 keyword 생성
+    // 프롬프트 title & keyword 생성 및 request 저장
     RequestPromptRefineResult refineResult;
     try {
       refineResult = requestPromptAiService.refine(dto.getPrompt());
@@ -151,7 +151,6 @@ public class RequestService {
           List.of()
       );
     }
-
     List<Keyword> keywords=refineResult.getKeywords().stream()
         .map(k -> keywordService.createKeyword(new KeywordCreateRequestDto(k))).toList();
     Request request = Request.builder()
@@ -161,13 +160,14 @@ public class RequestService {
         .promptKeywordsJson(writeKeywords(keywords.stream().map(Keyword::getRawText).toList()))
         .deleted(false)
         .build();
-
     requestRepository.saveAndFlush(request);
 
-    // 트랙 추가
-    List<TrackSemanticSearchItemDto> searchResults = trackSemanticSearchService.search(userId,dto.getPrompt(),5);
+    // 트랙 검색 및 추가
+    Long requestId = request.getId();
+    List<TrackSemanticSearchItemDto> searchResults = trackSemanticSearchService.search(userId,requestId,dto.getPrompt(),5);
     searchResults.forEach(r->requestTrackService.addTrackByRequest(request.getId(),r.getTrackId()));
 
+    // 썸네일 생성
     try {
       byte[] imageBytes = requestThumbnailAiService.generateThumbnail(
           dto.getPrompt(),
