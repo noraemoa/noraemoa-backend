@@ -47,12 +47,16 @@ public class RequestTrackService {
     List<RecommendedTrackRow> recommendedTracks = requestTrackRepository
         .findAllRecommendedTracksByRequestId(userId, requestId);
 
-    if(recommendedTracks.isEmpty()) return List.of();
+    if (recommendedTracks.isEmpty()) {
+      return List.of();
+    }
 
-    List<String> trackIds = recommendedTracks.stream().map(RecommendedTrackRow::getSpotifyId).toList();
+    List<String> trackIds = recommendedTracks.stream().map(RecommendedTrackRow::getSpotifyId)
+        .toList();
     Set<String> likedSpotifyIds = new HashSet<>(
         trackLikeRepository.findLikedSpotifyIds(userId, trackIds));
-    return recommendedTracks.stream().map(t->RecommendedTrackResponseDto.from(t,likedSpotifyIds)).toList();
+    return recommendedTracks.stream().map(t -> RecommendedTrackResponseDto.from(t, likedSpotifyIds))
+        .toList();
   }
 
   @Transactional(readOnly = true)
@@ -93,20 +97,39 @@ public class RequestTrackService {
 
   @Transactional
   public RequestTrackRating rateTrack(Long userId, Long requestId, Long trackId, Integer rating) {
+    if (rating == null || rating < 1 || rating > 5) {
+      throw new IllegalArgumentException("rating은 1~5");
+    }
+
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
     RequestTrack rt = requestTrackRepository.findByRequest_IdAndTrack_Id(requestId, trackId)
         .orElseThrow(() -> new NotFoundException("해당 요청에 트랙이 없습니다."));
-    if (rating < 1 || rating > 5) {
-      throw new IllegalArgumentException("rating은 1~5");
-    }
-    Double avgRating = rt.getAvgRating();
-    Integer ratingCount = rt.getRatingCount();
-    rt.setAvgRating((avgRating*ratingCount+rating)/ratingCount+1);
-    rt.setRatingCount(ratingCount+1);
 
-    RequestTrackRating requestTrackRating = RequestTrackRating.builder().requestTrack(rt).user(user).rating(rating).build();
-    return requestTrackRatingRepository.save(requestTrackRating);
+    double avgRating = rt.getAvgRating() == null ? 0.0 : rt.getAvgRating();
+    int ratingCount = rt.getRatingCount() == null ? 0 : rt.getRatingCount();
+
+    RequestTrackRating existingRating = requestTrackRatingRepository.findByRequestTrack_IdAndUser_Id(
+            rt.getId(), userId)
+        .orElse(null);
+    if(existingRating==null){
+      double newAvg =(avgRating * ratingCount + rating) / (ratingCount + 1);
+      rt.setAvgRating(newAvg);
+      rt.setRatingCount(ratingCount + 1);
+
+      RequestTrackRating requestTrackRating = RequestTrackRating.builder().requestTrack(rt).user(user)
+          .rating(rating).build();
+      return requestTrackRatingRepository.save(requestTrackRating);
+    }
+
+    int oldRating = existingRating.getRating();
+    double newAvg =ratingCount==0?rating:(avgRating*ratingCount -oldRating +rating)/ratingCount;
+
+    rt.setAvgRating(newAvg);
+    rt.setRatingCount(ratingCount);
+
+    existingRating.setRating(rating);
+    return requestTrackRatingRepository.save(existingRating);
   }
 
   public RequestTrackRating getRequestTrackRating(Long userId, Long requestId, Long trackId) {
