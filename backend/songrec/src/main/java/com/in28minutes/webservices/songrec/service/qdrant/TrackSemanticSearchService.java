@@ -101,8 +101,8 @@ public class TrackSemanticSearchService {
       int limit) {
     // qdrant 후보
     QdrantSearchResponse response = qdrantClient.searchSong(vector, limit);
-    response.getResult().getPoints().stream().map(r -> (SongPayload) r.getPayload())
-        .forEach(p -> log.info("후보곡:{}", p.getTitle()));
+//    response.getResult().getPoints().stream().map(r -> (SongPayload) r.getPayload())
+//        .forEach(p -> log.info("후보곡:{}", p.getTitle()));
 
     return response.getResult().getPoints();
   }
@@ -207,18 +207,21 @@ public class TrackSemanticSearchService {
       List<RequestTrackFeedbackRow> feedbackRows = feedbackRowByTrackId.get(trackId);
       double weightedSum=0.0;
       double weightSum=0.0;
-      for(RequestTrackFeedbackRow feedbackRow : feedbackRows){
-        Double sim = requestSimiarityMap.get(feedbackRow.getTrackId());
-        if(sim==null||sim<=0.0) continue;
+      if(feedbackRows!=null){
+        for(RequestTrackFeedbackRow feedbackRow : feedbackRows){
+          Double sim = requestSimiarityMap.get(feedbackRow.getTrackId());
+          if(sim==null||sim<=0.0) continue;
 
-        double avgRating = feedbackRow.getAvgRating();
-        double normalized = (avgRating - 3.0) / 2.0;
-        double confidence = Math.min(1.0, Math.log(1 + feedbackRow.getRatingCount()) / Math.log(20));
-        double adjustedFeedback = normalized * confidence;
+          double avgRating = feedbackRow.getAvgRating();
+          double normalized = (avgRating - 3.0) / 2.0;
+          double confidence = Math.min(1.0, Math.log(1 + feedbackRow.getRatingCount()) / Math.log(20));
+          double adjustedFeedback = normalized * confidence;
 
-        weightedSum+=(sim*adjustedFeedback);
-        weightSum+=sim;
+          weightedSum+=(sim*adjustedFeedback);
+          weightSum+=sim;
+        }
       }
+
 
       if(weightedSum>0.0) adjustedFeedbackScore =weightedSum/weightSum;
 
