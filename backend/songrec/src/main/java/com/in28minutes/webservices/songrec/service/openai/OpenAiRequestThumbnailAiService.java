@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
+import java.util.Random;
 @Service
 @RequiredArgsConstructor
 public class OpenAiRequestThumbnailAiService implements RequestThumbnailAiService {
@@ -21,53 +21,89 @@ public class OpenAiRequestThumbnailAiService implements RequestThumbnailAiServic
     return openAiImageClient.generate(prompt).getImageBytes();
   }
 
+
+  private static final List<String> THUMBNAIL_STYLE_VARIANTS = List.of(
+      "soft anime-style illustration",
+      "minimal watercolor painting",
+      "dreamy pastel illustration",
+      "soft cinematic illustration",
+      "clean vector-like illustration with soft gradients"
+  );
+
+  private final Random random = new Random();
+
   private String buildPrompt(String originalPrompt, String title, List<String> keywords) {
+    String styleHint = THUMBNAIL_STYLE_VARIANTS.get(
+        random.nextInt(THUMBNAIL_STYLE_VARIANTS.size())
+    );
+
     return """
-      Create a square thumbnail image for a music playlist app.
+    Create a square thumbnail image for a music playlist app.
 
-      Goal:
-      - emotionally matched to the playlist
-      - visually distinctive
-      - clear and recognizable at small thumbnail size
+    Goal:
+    - emotionally matched to the playlist
+    - visually distinctive
+    - clear and recognizable at small thumbnail size
 
-      Visual style:
-      - clean and modern
-      - cinematic but minimal
-      - polished digital illustration or stylized scene
-      - soft lighting with clear contrast
-      - not generic stock-art feeling
-      - not overly abstract unless needed by the mood
+    Visual style:
+    - soft, painterly digital illustration (NOT photorealistic)
+    - warm and gentle atmosphere
+    - smooth gradients and soft lighting
+    - slightly dreamy and emotional tone
+    - clean and minimal composition
+    - visually appealing and aesthetic
+    - vary composition and perspective for each image
+    - avoid repeating the same scene structure
 
-      Composition rules:
-      - square composition
-      - one strong focal subject or one clear scene
-      - balanced layout
-      - strong visual anchor
-      - simple background
-      - suitable for music app thumbnail cards
+    Rendering style:
+    - hand-painted digital illustration feel
+    - soft brush strokes
+    - pastel or muted color palette
+    - subtle glow or soft light diffusion
+    - avoid sharp, harsh contrast
 
-      Strict constraints:
-      - no text
-      - no letters
-      - no typography
-      - no logo
-      - no watermark
-      - no collage
-      - no split layout
-      - no crowded composition
+    Additional style hint:
+    - %s
 
-      Use the title and keywords as mood guidance only.
-      Do not render any words inside the image.
+    Avoid:
+    - photorealism
+    - realistic photography style
+    - stock photo look
+    - overly detailed textures (skin pores, noise, etc.)
+    - hyper-real lighting
+    - generic AI stock illustration
 
-      Playlist title:
-      %s
+    Composition rules:
+    - square composition
+    - one strong focal subject or one clear scene
+    - balanced layout
+    - strong visual anchor
+    - simple background
+    - suitable for music app thumbnail cards
 
-      Keywords:
-      %s
+    Strict constraints:
+    - no text
+    - no letters
+    - no typography
+    - no logo
+    - no watermark
+    - no collage
+    - no split layout
+    - no crowded composition
 
-      User request:
-      %s
-      """.formatted(
+    Use the title and keywords as mood guidance only.
+    Do not render any words inside the image.
+
+    Playlist title:
+    %s
+
+    Keywords:
+    %s
+
+    User request:
+    %s
+    """.formatted(
+        styleHint,
         title,
         String.join(", ", keywords),
         originalPrompt
