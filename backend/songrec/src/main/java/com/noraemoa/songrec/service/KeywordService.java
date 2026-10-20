@@ -1,0 +1,46 @@
+package com.noraemoa.songrec.service;
+
+import com.noraemoa.songrec.domain.keyword.Keyword;
+import com.noraemoa.songrec.dto.request.KeywordCreateRequestDto;
+import com.noraemoa.songrec.global.exception.NotFoundException;
+import com.noraemoa.songrec.repository.KeywordRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class KeywordService {
+    private final KeywordRepository keywordRepository;
+    private String normalize(String s){
+        String lowered = s.toLowerCase();
+        String noSpaces = lowered.replaceAll("\\s+", "");
+        return noSpaces.replaceAll("[\\p{Punct}]+", "");
+    }
+
+    @Transactional
+    public Keyword createKeyword(KeywordCreateRequestDto dto){
+        String raw = dto.getRawText().trim();
+        String normalized = normalize(raw);
+
+        return keywordRepository.findByNormalizedText(normalized)
+                .orElseGet(()->keywordRepository.saveAndFlush(
+                        Keyword.builder()
+                                .rawText(raw)
+                                .normalizedText(normalized)
+                                .build()
+                ));
+    }
+
+    @Transactional(readOnly = true)
+    public Keyword getKeyword(Long keywordId){
+        return keywordRepository.findById(keywordId)
+                .orElseThrow(()->new NotFoundException("해당 키워드를 찾을 수 없습니다."));
+    }
+
+    public List<Keyword> getAllKeywords(){
+        return keywordRepository.findAll();
+    }
+}

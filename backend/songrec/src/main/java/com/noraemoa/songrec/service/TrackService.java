@@ -1,0 +1,149 @@
+package com.noraemoa.songrec.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.noraemoa.songrec.domain.track.Track;
+import com.noraemoa.songrec.dto.request.TrackCreateRequestDto;
+import com.noraemoa.songrec.global.exception.NotFoundException;
+import com.noraemoa.songrec.integration.openai.dto.TrackTagGenerationInput;
+import com.noraemoa.songrec.integration.openai.dto.TrackTagGenerationResult;
+import com.noraemoa.songrec.integration.qdrant.dto.SongPayload;
+import com.noraemoa.songrec.integration.spotify.api.SpotifyApiClient;
+import com.noraemoa.songrec.integration.spotify.dto.SpotifyGetArtistResponse;
+import com.noraemoa.songrec.integration.spotify.dto.SpotifySearchResponse;
+import com.noraemoa.songrec.integration.spotify.dto.SpotifyTrackResponseDto;
+import com.noraemoa.songrec.repository.TrackLikeRepository;
+import com.noraemoa.songrec.repository.TrackRepository;
+import com.noraemoa.songrec.service.openai.TrackTagGenerationService;
+import com.noraemoa.songrec.service.qdrant.SongVectorIndexService;
+import java.util.HashSet;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class TrackService {
+
+  private final TrackRepository trackRepository;
+  private final SpotifyApiClient spotifyApiClient;
+  private final TrackLikeRepository trackLikeRepository;
+  private final ObjectMapper objectMapper;
+  private final TrackTagGenerationService trackTagGenerationService;
+  private final SongVectorIndexService songVectorIndexService;
+
+  @Transactional
+  public Track createTrack(TrackCreateRequestDto trackCreateRequestDto) {
+    Track track = Track.builder()
+        .spotifyId(trackCreateRequestDto.getSpotifyId())
+        .name(trackCreateRequestDto.getName())
+        .artist(trackCreateRequestDto.getArtist())
+        .album(trackCreateRequestDto.getAlbum())
+        .imageUrl(trackCreateRequestDto.getImageUrl())
+        .durationMs(trackCreateRequestDto.getDurationMs())
+        .build();
+
+    return trackRepository.findBySpotifyId(trackCreateRequestDto.getSpotifyId())
+        .orElseGet(() -> trackRepository.save(track));
+  }
+
+  @Transactional(readOnly = true)
+  public List<Track> getAllTracks() {
+    return trackRepository.findAll();
+  }
+
+  @Transactional(readOnly = true)
+  public Track getTrack(Long id) {
+
+    return trackRepository.findById(id)
+        .orElseThrow(() -> new NotFoundException("해당 트랙을 찾을 수 없습니다."));
+  }
+
+  public void upsertTrackVector(TrackCreateRequestDto dto,Long trackId){
+    TrackTagGenerationInput input = TrackTagGenerationInput.builder()
+        .spotifyId(dto.getSpotifyId())
+        .name(dto.getName())
+        .artist(dto.getArtist())
+        .albumName(dto.getAlbum())
+        .durationMs(dto.getDurationMs()).build();
+
+    TrackTagGenerationResult tagGenerationResult = trackTagGenerationService.generateTags(input);
+    SongPayload payload = SongPayload.builder()
+        .trackId(trackId)
+        .spotifyTrackId(dto.getSpotifyId())
+        .title(dto.getName())
+        .artist(dto.getArtist())
+        .mood_tags(tagGenerationResult.getMood_tags())
+        .scene_tags(tagGenerationResult.getScene_tags())
+        .texture_tags(tagGenerationResult.getTexture_tags())
+        .short_description(tagGenerationResult.getShort_description()).build();
+
+    songVectorIndexService.upsertSong(payload);
+  }
+
+  @Transactional
+  public void ensureTrackIndexed(Track track,TrackCreateRequestDto dto){
+    if(Boolean.TRUE.equals(track.getVectorIndexed())){return;}
+    upsertTrackVector(dto,track.getId());
+    track.setVectorIndexed(true);
+  }
+
+  @Transactional
+  public Track findOrCreateTrack(TrackCreateRequestDto dto) {
+
+    return trackRepository.findBySpotifyId(dto.getSpotifyId())
+        .orElseGet(() -> createTrack(dto));
+  }
+
+  @Transactional(readOnly = true)
+  public SpotifyTrackResponseDto search(Long userId, String query) {
+    SpotifySearchResponse spotifyTracks = spotifyApiClient.search(query);
+    try {
+      System.out.println(
+          objectMapper.writerWithDefaultPrettyPrinter()
+              .writeValueAsString(spotifyTracks)
+      );
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    List<String> spotifyIds = spotifyTracks.tracks().items().stream()
+        .map(SpotifySearchResponse.TrackItem::id).toList();
+    Set<String> likedSpotifyIds = new HashSet<>(
+        trackLikeRepository.findLikedSpotifyIds(userId, spotifyIds));
+
+    return SpotifyTrackResponseDto.from(spotifyTracks, likedSpotifyIds);
+  }
+
+  @Transactional(readOnly = true)
+  public SpotifyGetArtistResponse getArtist(String id) {
+    return spotifyApiClient.getArtist(id);
+  }
+
+  public TrackCreateRequestDto toTrackCreateRequestDto(SpotifySearchResponse.TrackItem item) {
+    String imageUrl = null;
+    if (item.album() != null
+        && item.album().images() != null
+        && !item.album().images().isEmpty()) {
+      imageUrl = item.album().images().get(0).url();
+    }
+
+    String artistName = item.artists() != null && !item.artists().isEmpty()
+        ? item.artists().get(0).name()
+        : "Unknown Artist";
+
+    String albumName = item.album() != null ? item.album().name() : null;
+
+    return TrackCreateRequestDto.builder()
+        .spotifyId(item.id())
+        .name(item.name())
+        .artist(artistName)
+        .album(albumName)
+        .imageUrl(imageUrl)
+        .durationMs(item.durationMs())
+        .build();
+  }
+}

@@ -1,0 +1,41 @@
+package com.noraemoa.songrec.domain.request;
+
+import com.noraemoa.songrec.domain.track.Track;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.*;
+
+@Entity
+@Table(name = "request_track",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"request_id", "track_id"})
+        })
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
+@Builder
+public class RequestTrack {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "request_id",nullable = false)
+    private Request request;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "track_id",nullable = false)
+    private Track track;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean trackDeleted = false;
+
+    @Column(name = "avg_rating")
+    private Double avgRating;
+
+    @Column(name = "rating_count")
+    private Integer ratingCount;
+}

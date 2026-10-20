@@ -1,0 +1,14 @@
+package com.noraemoa.songrec.dto.response.dailyTrack;
+
+import java.time.LocalDate;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
+
+@Builder
+@Getter
+@Setter
+public class DailyTrackStreakResponseDto {
+  private Integer currentStreak;
+  private boolean recordedToday;
+}

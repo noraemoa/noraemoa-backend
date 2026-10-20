@@ -1,0 +1,53 @@
+package com.noraemoa.songrec.domain.request;
+
+import com.noraemoa.songrec.domain.user.User;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "requests")
+@Builder
+@Getter @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class Request {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="user_id", nullable = false)
+    private User user;
+
+    @Column(nullable = false, length = 500)
+    private String originalPrompt;
+
+    @Column(nullable = false, length = 255)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String promptKeywordsJson;
+
+    @Column(name = "thumbnail_url")
+    private String thumbnailUrl;
+
+    @Column(name="thumbnail_key")
+    private String thumbnailKey;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean deleted = false;
+
+
+    @Column(name = "created_at", updatable = false)
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+}

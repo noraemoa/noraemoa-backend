@@ -1,0 +1,35 @@
+package com.noraemoa.songrec.domain.track;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name="tracks")
+@Getter @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Track {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "spotify_id", nullable = false,unique = true)
+    private String spotifyId;
+
+    @Column(nullable = false)
+    private String name;
+
+    private String artist;
+    private String album;
+
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    @Column(name = "duration_ms")
+    private Integer durationMs;
+
+    @Column(name = "vector_indexed",nullable = false)
+    @Builder.Default
+    private Boolean vectorIndexed = false;
+}

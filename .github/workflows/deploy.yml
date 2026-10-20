@@ -1,10 +1,8 @@
 name: Deploy Spring Boot to EC2
 
+# EC2 가 내려가 있어 push 자동 배포를 끄고, 필요할 때 Actions 탭에서 수동 실행한다.
 on:
-  push:
-    branches:
-      - main
-      - chore/add-deploy-workflow
+  workflow_dispatch:
 
 jobs:
   deploy:
