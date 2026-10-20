@@ -12,6 +12,6 @@ public class EvaluationRunner implements CommandLineRunner {
 
   @Override
   public void run(String... args) throws Exception {
-    evaluator.runEvaluation();
+    evaluator.runComparison();
   }
 }

@@ -10,6 +10,8 @@ import com.in28minutes.webservices.songrec.integration.qdrant.dto.RerankedCandid
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.SongPayload;
 import com.in28minutes.webservices.songrec.service.openai.TrackSearchQueryAnalysisService;
 import com.in28minutes.webservices.songrec.service.qdrant.TrackSemanticSearchService;
+import com.in28minutes.webservices.songrec.service.qdrant.TrackSemanticSearchService.RerankWeights;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -144,6 +146,77 @@ public class RecommendationEvaluator {
         .afterNDCG(afterRerankNDCG)
         .beforeLikedSimilarity(beforeLikedSimilarity)
         .afterLikedSimilarity(afterLikedSimilarity).build();
+  }
+
+  // [평가용] 같은 쿼리 분석 결과로 4가지 방식을 한 번에 비교
+  public void runComparison() {
+    List<String> queries = getQueries();
+    Long userId = 15L;
+    String[] names = {"raw", "v1", "v2_noFeedback", "v2"};
+    RerankWeights[] weights = {null, RerankWeights.V1, RerankWeights.CURRENT_NO_FEEDBACK,
+        RerankWeights.CURRENT};
+    double[] precision = new double[4];
+    double[] ndcg = new double[4];
+    double[] liked = new double[4];
+    int[] likedCnt = new int[4];
+    int evaluated = 0;
+
+    List<Float> likedAvg = trackSemanticSearchService.likedAverageVector(userId);
+
+    for (String query : queries) {
+      TrackSearchQueryAnalysisResult qr = queryAnalysisService.analyze(query);
+      Set<String> queryTags = new HashSet<>();
+      queryTags.addAll(tagRelevanceCalculator.normalize(qr.getMood_tags()));
+      queryTags.addAll(tagRelevanceCalculator.normalize(qr.getScene_tags()));
+      queryTags.addAll(tagRelevanceCalculator.normalize(qr.getTexture_tags()));
+
+      List<Float> qv = trackSemanticSearchService.buildQueryVector(qr);
+      List<Point> candidates = trackSemanticSearchService.searchCandidates(qv, 50);
+      if (candidates == null || candidates.isEmpty()) {
+        log.warn("EVAL_COMPARE skip query={} (no candidates)", query);
+        continue;
+      }
+      evaluated++;
+
+      for (int i = 0; i < 4; i++) {
+        List<Point> top10;
+        if (weights[i] == null) {
+          top10 = candidates.stream().limit(10).toList();
+        } else {
+          List<RerankedCandidate> sel = new ArrayList<>(trackSemanticSearchService
+              .selectRerankedCandidates(qv, candidates, userId, weights[i])
+              .getSelectedCandidates());
+          sel.sort((a, b) -> Double.compare(b.getFinalScore(), a.getFinalScore()));
+          top10 = sel.stream().limit(10).map(RerankedCandidate::getPoint).toList();
+        }
+        precision[i] += tagRelevanceCalculator.calculatePrecision(queryTags, top10);
+        ndcg[i] += ndcgCalculator.calculateNDCG(top10, queryTags);
+
+        if (likedAvg != null) {
+          double sum = 0.0;
+          int cnt = 0;
+          for (Point p : top10) {
+            if (p.getVector() != null) {
+              sum += trackSemanticSearchService.cosineSimilarity(p.getVector(), likedAvg);
+              cnt++;
+            }
+          }
+          if (cnt > 0) {
+            liked[i] += sum / cnt;
+            likedCnt[i]++;
+          }
+        }
+      }
+    }
+
+    log.info("EVAL_COMPARE evaluatedQueries={} / {}", evaluated, queries.size());
+    for (int i = 0; i < 4; i++) {
+      log.info("EVAL_COMPARE {} precision@10={} ndcg@10={} likedSim@10={}",
+          names[i],
+          evaluated == 0 ? 0 : precision[i] / evaluated,
+          evaluated == 0 ? 0 : ndcg[i] / evaluated,
+          likedCnt[i] == 0 ? 0 : liked[i] / likedCnt[i]);
+    }
   }
 
   private List<String> getQueries() {

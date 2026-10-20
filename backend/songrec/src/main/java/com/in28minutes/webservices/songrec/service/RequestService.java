@@ -27,7 +27,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-
 import java.io.IOException;
 import java.util.List;
 
@@ -44,6 +43,7 @@ public class RequestService {
   private final RequestTrackService requestTrackService;
   private final FileStorageService fileStorageService;
   private final TrackSemanticSearchService trackSemanticSearchService;
+  private final RequestWriteService requestWriteService;
 
   @Transactional
   public Request updateRequest(RequestCreateRequestDto requestDto, Long userId, Long requestId) {
@@ -135,12 +135,18 @@ public class RequestService {
     }
   }
 
-  @Transactional
-  public RequestResponseDto createRequest(RequestCreateRequestDto dto, Long userId){
-    User user = userRepository.findById(userId)
-        .orElseThrow(() -> new NotFoundException("User not found"));
+  /**
+   * 외부 API 호출(refine, search, thumbnail)은 트랜잭션 밖에서,
+   * DB 쓰기는 RequestWriteService의 짧은 트랜잭션에서 처리한다.
+   * (같은 클래스 내부 호출은 @Transactional이 적용되지 않으므로 별도 빈으로 분리)
+   */
+  public RequestResponseDto createRequest(RequestCreateRequestDto dto, Long userId) {
+    // 외부 API 비용을 쓰기 전에 사용자 존재 여부만 빠르게 확인
+    if (!userRepository.existsById(userId)) {
+      throw new NotFoundException("User not found");
+    }
 
-    // 프롬프트 title & keyword 생성 및 request 저장
+    // 1) 프롬프트 title & keyword 생성 (OpenAI 호출) - 트랜잭션 밖
     RequestPromptRefineResult refineResult;
     try {
       refineResult = requestPromptAiService.refine(dto.getPrompt());
@@ -151,40 +157,46 @@ public class RequestService {
           List.of()
       );
     }
-    List<Keyword> keywords=refineResult.getKeywords().stream()
-        .map(k -> keywordService.createKeyword(new KeywordCreateRequestDto(k))).toList();
-    Request request = Request.builder()
-        .user(user)
-        .originalPrompt(dto.getPrompt())
-        .title(refineResult.getTitle())
-        .promptKeywordsJson(writeKeywords(keywords.stream().map(Keyword::getRawText).toList()))
-        .deleted(false)
-        .build();
-    requestRepository.saveAndFlush(request);
 
-    // 트랙 검색 및 추가
-    Long requestId = request.getId();
-    List<TrackSemanticSearchItemDto> searchResults = trackSemanticSearchService.search(userId,requestId,dto.getPrompt(),5);
-    searchResults.forEach(r->requestTrackService.addTrackByRequest(request.getId(),r.getTrackId()));
+    // 2) 키워드 저장 + Request 저장 - 짧은 트랜잭션
+    RequestWriteService.RequestCreationResult creationResult =
+        requestWriteService.createRequestWithKeywords(dto, userId, refineResult);
+    List<Keyword> keywords = creationResult.keywords();
+    Long requestId = creationResult.request().getId();
 
-    // 썸네일 생성
+    // 3) 트랙 검색 (OpenAI + Qdrant 호출) - 트랜잭션 밖
+    List<TrackSemanticSearchItemDto> searchResults;
+    try {
+      searchResults = trackSemanticSearchService.search(userId, requestId, dto.getPrompt(), 5);
+    } catch (Exception e) {
+      e.printStackTrace();
+      searchResults = List.of();
+    }
+    if (searchResults == null) {
+      searchResults = List.of();
+    }
+
+    // 4) 트랙 매핑 저장 - 짧은 트랜잭션
+    requestWriteService.addTracksToRequest(requestId, searchResults);
+
+    // 5) 썸네일 생성 (OpenAI Image + S3 업로드) - 트랜잭션 밖, 실패해도 요청은 성공 처리
     try {
       byte[] imageBytes = requestThumbnailAiService.generateThumbnail(
           dto.getPrompt(),
           refineResult.getTitle(),
-          keywords.stream().map(
-              Keyword::getRawText).toList()
+          keywords.stream().map(Keyword::getRawText).toList()
       );
       StoredFile stored =
-          fileStorageService.storeGeneratedThumbnail(request.getId(), imageBytes);
+          fileStorageService.storeGeneratedThumbnail(requestId, imageBytes);
 
-      request.setThumbnailKey(stored.key());
-      request.setThumbnailUrl(stored.url());
+      // 6) 썸네일 key/url 반영 - 짧은 트랜잭션
+      requestWriteService.updateThumbnail(requestId, stored.key(), stored.url());
     } catch (Exception e) {
       System.out.println("Thumbnail generation failed");
       e.printStackTrace();
     }
 
-    return RequestResponseDto.from(request, keywords);
+    // 7) 최종 상태 재조회 + DTO 변환 - 짧은 읽기 트랜잭션
+    return requestWriteService.getRequestResponse(requestId, keywords);
   }
 }

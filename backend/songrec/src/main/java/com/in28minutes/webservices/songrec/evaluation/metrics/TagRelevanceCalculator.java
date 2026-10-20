@@ -5,6 +5,8 @@ import com.in28minutes.webservices.songrec.integration.qdrant.dto.QdrantSearchRe
 import com.in28minutes.webservices.songrec.integration.qdrant.dto.SongPayload;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
@@ -38,10 +40,17 @@ public class TagRelevanceCalculator {
       return 0.0;
     }
     Set<String> songTags = new HashSet<>();
-    SongPayload songPayload = (SongPayload )responseSong.getPayload();
-    songTags.addAll(normalize(songPayload.getMood_tags()));
-    songTags.addAll(normalize(songPayload.getScene_tags()));
-    songTags.addAll(normalize(songPayload.getTexture_tags()));
+    Object payload = responseSong.getPayload();
+    if (payload instanceof SongPayload songPayload) {
+      songTags.addAll(normalize(songPayload.getMood_tags()));
+      songTags.addAll(normalize(songPayload.getScene_tags()));
+      songTags.addAll(normalize(songPayload.getTexture_tags()));
+    } else if (payload instanceof Map<?, ?> map) {
+      // Qdrant 응답의 payload는 JSON 역직렬화 시 LinkedHashMap으로 들어옴
+      songTags.addAll(normalize(toStringList(map.get("mood_tags"))));
+      songTags.addAll(normalize(toStringList(map.get("scene_tags"))));
+      songTags.addAll(normalize(toStringList(map.get("texture_tags"))));
+    }
 
     int totalTagCount = queryTags.size();
     int matchCount = 0;
@@ -66,5 +75,11 @@ public class TagRelevanceCalculator {
       result.add(tag.trim().toLowerCase());
     }
     return result;
+  }
+  private List<String> toStringList(Object value) {
+    if (!(value instanceof List<?> list)) {
+      return List.of();
+    }
+    return list.stream().filter(Objects::nonNull).map(String::valueOf).toList();
   }
 }

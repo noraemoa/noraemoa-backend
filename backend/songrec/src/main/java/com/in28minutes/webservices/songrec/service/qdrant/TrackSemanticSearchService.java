@@ -161,8 +161,21 @@ public class TrackSemanticSearchService {
     return response.getResult().getPoints();
   }
 
+  // [평가용] 재정렬 가중치 묶음
+  public record RerankWeights(double qdrant, double profile, double liked, double popularity,
+                              double feedback) {
+    public static final RerankWeights V1 = new RerankWeights(0.55, 0.20, 0.15, 0.10, 0.0);
+    public static final RerankWeights CURRENT_NO_FEEDBACK = new RerankWeights(0.60, 0.10, 0.10, 0.05, 0.0);
+    public static final RerankWeights CURRENT = new RerankWeights(0.60, 0.10, 0.10, 0.05, 0.15);
+  }
+
   public RerankPrepareResultDto selectRerankedCandidates(List<Float> queryVector,
       List<Point> response, Long userId) {
+    return selectRerankedCandidates(queryVector, response, userId, RerankWeights.CURRENT);
+  }
+
+  public RerankPrepareResultDto selectRerankedCandidates(List<Float> queryVector,
+      List<Point> response, Long userId, RerankWeights w) {
     long tLikedVector = System.nanoTime();
     User user = userRepository.findById(userId).orElse(null);
 
@@ -207,6 +220,9 @@ public class TrackSemanticSearchService {
     List<Long> trackIds = response.stream().map(Point::getId).toList();
     Map<Long, Track> trackMap = trackRepository.findAllByIdIn(trackIds).stream().collect(
         Collectors.toMap(Track::getId, Function.identity()));
+    log.info("trackIds.size={}, trackMap.size={}", trackIds.size(), trackMap.size());
+    long nullVectorCount = response.stream().filter(c -> c.getVector() == null).count();
+    log.info("nullVectorCount={} / responseSize={}", nullVectorCount, response.size());
 
     // requestId로 score(sim) 찾기
     Map<Long, Double> requestSimilarityMap = queryResponse.getResult().getPoints().stream().collect(
@@ -308,8 +324,8 @@ public class TrackSemanticSearchService {
       }
 
       double finalScore =
-          0.60 * qdrantScore + 0.10 * profileScore + 0.10 * likedScore + 0.05 * popularityScore
-              + 0.15 * adjustedFeedbackScore;
+          w.qdrant() * qdrantScore + w.profile() * profileScore + w.liked() * likedScore
+              + w.popularity() * popularityScore + w.feedback() * adjustedFeedbackScore;
       filteredPoints.add(candidate);
       selectedCandidates.add(new RerankedCandidate(candidate, track, finalScore));
     }
