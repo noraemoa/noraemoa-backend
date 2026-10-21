@@ -5,25 +5,27 @@ import com.noraemoa.songrec.domain.request.Request;
 import com.noraemoa.songrec.domain.user.User;
 import com.noraemoa.songrec.dto.request.KeywordCreateRequestDto;
 import com.noraemoa.songrec.dto.request.RequestCreateRequestDto;
-import com.noraemoa.songrec.dto.request.TrackSemanticSearchItemDto;
 import com.noraemoa.songrec.dto.response.request.RequestResponseDto;
 import com.noraemoa.songrec.global.exception.NotFoundException;
 import com.noraemoa.songrec.integration.openai.dto.RequestPromptRefineResult;
 import com.noraemoa.songrec.repository.RequestRepository;
 import com.noraemoa.songrec.repository.UserRepository;
+import com.noraemoa.songrec.service.event.RequestCreatedEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 요청 생성 과정의 DB 쓰기만 담당하는 서비스.
  *
- * RequestService.createRequest()에서 같은 클래스의 @Transactional 메서드를 this로 호출하면
- * 스프링 프록시를 거치지 않아 트랜잭션이 적용되지 않는다(self-invocation).
- * 그래서 DB 쓰기 메서드를 별도 빈으로 분리해, 외부에서 프록시를 통해 호출되도록 했다.
+ * 스프링의 @Transactional 은 빈을 감싼 프록시가 메서드 호출을 가로채서 트랜잭션을 연다.
+ * RequestService 안에서 같은 클래스의 @Transactional 메서드를 this.save() 처럼 부르면
+ * 프록시를 거치지 않으므로 트랜잭션이 열리지 않는다(self-invocation).
+ * 그래서 DB 쓰기를 별도 빈으로 분리해, RequestService 가 프록시를 통해 호출하게 했다.
  */
 @Service
 @RequiredArgsConstructor
@@ -34,35 +36,39 @@ public class RequestWriteService {
   private final KeywordService keywordService;
   private final RequestTrackService requestTrackService;
   private final ObjectMapper objectMapper;
+  private final ApplicationEventPublisher eventPublisher;
 
-  public record RequestCreationResult(Request request, List<Keyword> keywords) {
-  }
-
-  // 키워드 저장 + Request 저장을 하나의 트랜잭션으로 묶음 (중간 실패 시 함께 롤백)
+  /**
+   * Keyword, Request, RequestTrack 을 하나의 트랜잭션으로 저장한다. 중간에 실패하면 전부 롤백된다.
+   * 외부 API 호출이 모두 끝난 뒤에만 호출되므로 이 트랜잭션은 DB 작업 시간만큼만 커넥션을 쓴다.
+   * 발행한 RequestCreatedEvent 는 커밋된 뒤에만 리스너(썸네일 생성)에 전달된다.
+   */
   @Transactional
-  public RequestCreationResult createRequestWithKeywords(
-      RequestCreateRequestDto dto, Long userId, RequestPromptRefineResult refineResult) {
+  public RequestResponseDto saveRequest(RequestCreateRequestDto dto, Long userId,
+      RequestPromptRefineResult refineResult, List<Long> trackIds) {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new NotFoundException("User not found"));
 
     List<Keyword> keywords = refineResult.getKeywords().stream()
         .map(k -> keywordService.createKeyword(new KeywordCreateRequestDto(k))).toList();
+    List<String> rawKeywords = keywords.stream().map(Keyword::getRawText).toList();
 
     Request request = Request.builder()
         .user(user)
         .originalPrompt(dto.getPrompt())
         .title(refineResult.getTitle())
-        .promptKeywordsJson(writeKeywords(keywords.stream().map(Keyword::getRawText).toList()))
+        .promptKeywordsJson(writeKeywords(rawKeywords))
         .deleted(false)
         .build();
     requestRepository.saveAndFlush(request);
-    return new RequestCreationResult(request, keywords);
-  }
 
-  // 추천곡 매핑 저장을 하나의 트랜잭션으로 묶음
-  @Transactional
-  public void addTracksToRequest(Long requestId, List<TrackSemanticSearchItemDto> searchResults) {
-    searchResults.forEach(r -> requestTrackService.addTrackByRequest(requestId, r.getTrackId()));
+    trackIds.forEach(trackId -> requestTrackService.addTrackByRequest(request.getId(), trackId));
+
+    eventPublisher.publishEvent(new RequestCreatedEvent(
+        request.getId(), dto.getPrompt(), refineResult.getTitle(), rawKeywords));
+
+    // 응답 DTO 변환까지 트랜잭션 안에서 처리 (OSIV 없이도 LAZY 필드 접근 가능)
+    return RequestResponseDto.from(request, keywords);
   }
 
   @Transactional
@@ -71,14 +77,6 @@ public class RequestWriteService {
         .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
     request.setThumbnailKey(key);
     request.setThumbnailUrl(url);
-  }
-
-  // 응답 DTO 변환까지 트랜잭션 안에서 처리 (OSIV 없이도 LAZY 필드 접근 가능)
-  @Transactional(readOnly = true)
-  public RequestResponseDto getRequestResponse(Long requestId, List<Keyword> keywords) {
-    Request request = requestRepository.findByIdAndDeletedFalse(requestId)
-        .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
-    return RequestResponseDto.from(request, keywords);
   }
 
   private String writeKeywords(List<String> keywords) {

@@ -10,7 +10,6 @@ import com.noraemoa.songrec.integration.qdrant.dto.QdrantRetrieveResponse;
 import com.noraemoa.songrec.integration.qdrant.dto.QdrantSearchResponse;
 import com.noraemoa.songrec.integration.qdrant.dto.QdrantSearchResponse.Point;
 import com.noraemoa.songrec.integration.qdrant.dto.QueryEmbeddingPayload;
-import com.noraemoa.songrec.integration.qdrant.dto.QueryVectorBuildResultDto;
 import com.noraemoa.songrec.integration.qdrant.dto.RerankPrepareResultDto;
 import com.noraemoa.songrec.integration.qdrant.dto.RerankedCandidate;
 import com.noraemoa.songrec.integration.qdrant.dto.SongPayload;
@@ -50,8 +49,18 @@ public class TrackSemanticSearchService {
   private final RequestTrackRepository requestTrackRepository;
   private final RequestTrackService requestTrackService;
 
-  public List<TrackSemanticSearchItemDto> search(Long userId, Long requestId, String query,
-      int limit) {
+  /**
+   * 검색 결과와, 나중에 Qdrant 에 저장할 질의 벡터(queryVector, searchText)를 함께 돌려준다.
+   * 질의 벡터 저장(upsertQueryPoint)은 requestId 가 필요하므로 Request 가 커밋된 뒤 호출한다.
+   */
+  public record SemanticSearchResult(List<TrackSemanticSearchItemDto> items,
+                                     List<Float> queryVector, String searchText) {
+  }
+
+  /**
+   * 외부 호출(OpenAI 질의 분석/임베딩, Qdrant 검색)과 읽기 전용 조회만 한다. DB/Qdrant 에 쓰지 않는다.
+   */
+  public SemanticSearchResult search(Long userId, String query, int limit) {
     long totalStart = System.nanoTime();
 
     // query 분석
@@ -60,13 +69,13 @@ public class TrackSemanticSearchService {
         trackSearchQueryAnalysisService.analyze(query);
     long analyzeMs = (System.nanoTime() - t1) / 1000000;
 
-    // qdrant 후보
+    // query 임베딩
     long t2 = System.nanoTime();
-    QueryVectorBuildResultDto queryVectorBuildResult = buildQueryVectorAndUpsert(requestId,
-        analysis);
-    List<Float> queryVector = queryVectorBuildResult.getVector();
-    long queryEmbeddingMs = (System.nanoTime() - t2) / 1000000;
+    String searchText = buildSearchText(analysis);
+    List<Float> queryVector = embeddingService.embedText(searchText);
+    long embedMs = (System.nanoTime() - t2) / 1000000;
 
+    // qdrant 후보
     long t3 = System.nanoTime();
     List<Point> response = searchCandidates(queryVector, 50);
     long candidateSearchMs = (System.nanoTime() - t3) / 1000000;
@@ -75,9 +84,9 @@ public class TrackSemanticSearchService {
     if (response == null || response.isEmpty()) {
       long totalMs = (System.nanoTime() - totalStart) / 1000000;
       log.info(
-          "searchPerf requestId={},analyzeMs={}, queryEmbeddingMs={},candidateSearchMs={},totalMs={}",
-          requestId, analyzeMs, queryEmbeddingMs, candidateSearchMs, totalMs);
-      return null;
+          "searchPerf analyzeMs={}, embedMs={},candidateSearchMs={},totalMs={}",
+          analyzeMs, embedMs, candidateSearchMs, totalMs);
+      return new SemanticSearchResult(List.of(), queryVector, searchText);
     }
 
     long t4 = System.nanoTime();
@@ -93,14 +102,12 @@ public class TrackSemanticSearchService {
     long totalMs = (System.nanoTime() - totalStart) / 1000000;
 
     log.info(
-        "PERF_SUMMARY requestId={} totalMs={} analyzeMs={} embedMs={} upsertMs={} candidateSearchMs={} rerankPrepareMs={} rerankMs={} "
+        "PERF_SUMMARY totalMs={} analyzeMs={} embedMs={} candidateSearchMs={} rerankPrepareMs={} rerankMs={} "
             + "likedVectorMs={} profileVectorMs={} similarQuerySearchMs={} batchMs={} selectCandidateMs={} "
             + "popularityTotalMs={} feedbackTotalMs={} similarityFilterTotalMs={}",
-        requestId,
         totalMs,
         analyzeMs,
-        queryVectorBuildResult.getEmbedMs(),
-        queryVectorBuildResult.getUpsertMs(),
+        embedMs,
         candidateSearchMs,
         rerankPrepareMs,
         rerankMs,
@@ -113,7 +120,7 @@ public class TrackSemanticSearchService {
         selectCandidateResult.getTotalFeedbackMs(),
         selectCandidateResult.getTotalSimilarTrackFilterMs()
     );
-    return result;
+    return new SemanticSearchResult(result, queryVector, searchText);
   }
 
   private String buildSearchText(TrackSearchQueryAnalysisResult result) {
@@ -127,14 +134,11 @@ public class TrackSemanticSearchService {
     ).trim().replaceAll("\\s+", " ");
   }
 
-  private QueryVectorBuildResultDto buildQueryVectorAndUpsert(Long requestId,
-      TrackSearchQueryAnalysisResult queryAnalysisResult) {
-    long tEmbed = System.nanoTime();
-    String searchText = buildSearchText(queryAnalysisResult);
-    List<Float> vector = embeddingService.embedText(searchText);
-    long embedMs = (System.nanoTime() - tEmbed) / 1000000;
-
-    long tUpsert = System.nanoTime();
+  /**
+   * 질의 벡터를 requestId 로 Qdrant 에 저장한다. 이후 요청의 "과거 유사 질의 → 별점 피드백" 계산에 쓰인다.
+   * Request 가 DB 에 커밋된 뒤에 호출해야 Qdrant 에만 남는 고아 포인트가 생기지 않는다.
+   */
+  public void upsertQueryPoint(Long requestId, List<Float> vector, String searchText) {
     QueryEmbeddingPayload payload = QueryEmbeddingPayload.builder()
         .requestId(requestId)
         .queryText(searchText).build();
@@ -144,11 +148,6 @@ public class TrackSemanticSearchService {
         .vector(vector)
         .payload(payload).build();
     qdrantClient.upsertQueryEmbeddingPoint(point);
-    long upsertMs = (System.nanoTime() - tUpsert) / 1000000;
-    return QueryVectorBuildResultDto.builder()
-        .vector(vector)
-        .embedMs(embedMs)
-        .upsertMs(upsertMs).build();
   }
 
   public List<Point> searchCandidates(List<Float> vector,

@@ -1,16 +1,12 @@
 package com.noraemoa.songrec.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.noraemoa.songrec.domain.keyword.Keyword;
 import com.noraemoa.songrec.domain.request.Request;
-import com.noraemoa.songrec.domain.track.Track;
-import com.noraemoa.songrec.domain.user.User;
-import com.noraemoa.songrec.dto.request.KeywordCreateRequestDto;
 import com.noraemoa.songrec.dto.request.RequestCreateRequestDto;
 import com.noraemoa.songrec.dto.request.TrackSemanticSearchItemDto;
 import com.noraemoa.songrec.dto.response.request.RequestResponseDto;
+import com.noraemoa.songrec.global.exception.ExternalApiException;
 import com.noraemoa.songrec.global.exception.NotFoundException;
 import com.noraemoa.songrec.integration.openai.dto.RequestPromptRefineResult;
 import com.noraemoa.songrec.repository.RequestRepository;
@@ -18,8 +14,9 @@ import com.noraemoa.songrec.repository.UserRepository;
 import com.noraemoa.songrec.service.fileStorage.FileStorageService;
 import com.noraemoa.songrec.service.fileStorage.S3FileStorageService.StoredFile;
 import com.noraemoa.songrec.service.qdrant.TrackSemanticSearchService;
-import java.util.Set;
+import com.noraemoa.songrec.service.qdrant.TrackSemanticSearchService.SemanticSearchResult;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RequestService {
@@ -38,9 +36,6 @@ public class RequestService {
   private final UserRepository userRepository;
   private final ObjectMapper objectMapper;
   private final RequestPromptAiService requestPromptAiService;
-  private final RequestThumbnailAiService requestThumbnailAiService;
-  private final KeywordService keywordService;
-  private final RequestTrackService requestTrackService;
   private final FileStorageService fileStorageService;
   private final TrackSemanticSearchService trackSemanticSearchService;
   private final RequestWriteService requestWriteService;
@@ -101,14 +96,6 @@ public class RequestService {
     return request;
   }
 
-  private String writeKeywords(List<String> keywords) {
-    try {
-      return objectMapper.writeValueAsString(keywords);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException("Failed to serialize keywords", e);
-    }
-  }
-
   private String fallbackTitle(String prompt) {
     if (prompt == null || prompt.isBlank()) {
       return "My Playlist";
@@ -135,10 +122,16 @@ public class RequestService {
     }
   }
 
+
   /**
-   * 외부 API 호출(refine, search, thumbnail)은 트랜잭션 밖에서,
-   * DB 쓰기는 RequestWriteService의 짧은 트랜잭션에서 처리한다.
-   * (같은 클래스 내부 호출은 @Transactional이 적용되지 않으므로 별도 빈으로 분리)
+   * 추천 요청 생성. 이 메서드에는 일부러 @Transactional 을 붙이지 않는다.
+   *
+   * 1) 외부 API 호출(프롬프트 정제, 질의 분석, 임베딩, Qdrant 검색)은 트랜잭션 밖에서 한다.
+   *    → 수 초 걸리는 OpenAI 응답을 기다리는 동안 DB 커넥션을 붙잡지 않는다.
+   * 2) DB 쓰기(Keyword, Request, RequestTrack)는 RequestWriteService 의 짧은 트랜잭션 1개로 묶는다.
+   *    → 외부 API 가 실패하면 그 전에 예외가 나므로 DB 에 반쯤 저장된 데이터가 남지 않는다.
+   * 3) Qdrant 질의 벡터 저장은 커밋 이후에 한다. 실패해도 추천 결과에는 영향이 없다.
+   * 4) 썸네일은 커밋 후 이벤트로 비동기 생성한다(RequestThumbnailEventListener). 응답의 thumbnailUrl 은 null 이다.
    */
   public RequestResponseDto createRequest(RequestCreateRequestDto dto, Long userId) {
     // 외부 API 비용을 쓰기 전에 사용자 존재 여부만 빠르게 확인
@@ -146,57 +139,41 @@ public class RequestService {
       throw new NotFoundException("User not found");
     }
 
-    // 1) 프롬프트 title & keyword 생성 (OpenAI 호출) - 트랜잭션 밖
+    // 1) 프롬프트 정제(OpenAI) - 실패해도 fallback 제목으로 계속 진행
     RequestPromptRefineResult refineResult;
     try {
       refineResult = requestPromptAiService.refine(dto.getPrompt());
     } catch (Exception e) {
-      e.printStackTrace();
-      refineResult = new RequestPromptRefineResult(
-          fallbackTitle(dto.getPrompt()),
-          List.of()
-      );
+      log.warn("Prompt refine failed, using fallback title. userId={}", userId, e);
+      refineResult = new RequestPromptRefineResult(fallbackTitle(dto.getPrompt()), List.of());
     }
 
-    // 2) 키워드 저장 + Request 저장 - 짧은 트랜잭션
-    RequestWriteService.RequestCreationResult creationResult =
-        requestWriteService.createRequestWithKeywords(dto, userId, refineResult);
-    List<Keyword> keywords = creationResult.keywords();
-    Long requestId = creationResult.request().getId();
-
-    // 3) 트랙 검색 (OpenAI + Qdrant 호출) - 트랜잭션 밖
-    List<TrackSemanticSearchItemDto> searchResults;
+    // 2) 트랙 검색(OpenAI + Qdrant) - 추천의 핵심이므로 실패하면 아무것도 저장하지 않고 실패 응답
+    SemanticSearchResult searchResult;
     try {
-      searchResults = trackSemanticSearchService.search(userId, requestId, dto.getPrompt(), 5);
+      searchResult = trackSemanticSearchService.search(userId, dto.getPrompt(), 5);
     } catch (Exception e) {
-      e.printStackTrace();
-      searchResults = List.of();
+      log.error("Track semantic search failed. userId={}", userId, e);
+      throw new ExternalApiException("추천 곡 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.", e);
     }
-    if (searchResults == null) {
-      searchResults = List.of();
-    }
+    List<Long> trackIds = searchResult.items().stream()
+        .map(TrackSemanticSearchItemDto::getTrackId).toList();
 
-    // 4) 트랙 매핑 저장 - 짧은 트랜잭션
-    requestWriteService.addTracksToRequest(requestId, searchResults);
+    // 3) DB 쓰기 - 짧은 트랜잭션 1개 (전부 저장되거나 전부 롤백)
+    RequestResponseDto response =
+        requestWriteService.saveRequest(dto, userId, refineResult, trackIds);
 
-    // 5) 썸네일 생성 (OpenAI Image + S3 업로드) - 트랜잭션 밖, 실패해도 요청은 성공 처리
+    // 4) 커밋 후 Qdrant 질의 벡터 저장 - 실패해도 추천 결과는 그대로 반환
     try {
-      byte[] imageBytes = requestThumbnailAiService.generateThumbnail(
-          dto.getPrompt(),
-          refineResult.getTitle(),
-          keywords.stream().map(Keyword::getRawText).toList()
-      );
-      StoredFile stored =
-          fileStorageService.storeGeneratedThumbnail(requestId, imageBytes);
-
-      // 6) 썸네일 key/url 반영 - 짧은 트랜잭션
-      requestWriteService.updateThumbnail(requestId, stored.key(), stored.url());
+      long t = System.nanoTime();
+      trackSemanticSearchService.upsertQueryPoint(
+          response.getId(), searchResult.queryVector(), searchResult.searchText());
+      log.info("QDRANT_QUERY_UPSERT requestId={} ms={}", response.getId(),
+          (System.nanoTime() - t) / 1_000_000);
     } catch (Exception e) {
-      System.out.println("Thumbnail generation failed");
-      e.printStackTrace();
+      log.warn("Query vector upsert failed. requestId={}", response.getId(), e);
     }
 
-    // 7) 최종 상태 재조회 + DTO 변환 - 짧은 읽기 트랜잭션
-    return requestWriteService.getRequestResponse(requestId, keywords);
+    return response;
   }
 }
