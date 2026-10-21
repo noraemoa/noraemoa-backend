@@ -202,3 +202,56 @@
   - 남은 응답 시간의 대부분은 OpenAI 호출 2번(정제 약 2~3초, 질의 분석 약 2.6초)이다. 더 줄이려면 정제와 검색을 병렬로 실행하거나 정제를 비동기로 바꾸는 방법이 있다. 다만 제목이 응답에 필요한지는 기획과 함께 판단해야 해서 이번 범위에서는 하지 않았다.
   - 한계: 표본이 버전마다 3회이고 실제 OpenAI 를 써서 응답 시간은 수 초씩 흔들린다. 커넥션 점유는 수십 배 차이라 결론이 흔들리지 않는다.
 - 면접 30초: "개선 전후를 같은 방법으로 세 번씩 재서 비교했습니다. 커넥션 점유 시간은 요청당 22초에서 0.4초로 98% 줄었고, 응답 시간은 썸네일 생성을 비동기로 돌려서 22초에서 7.7초로 65% 줄었습니다. 커넥션 풀 2개에 동시 요청 5개를 보내는 테스트에서도 수정 전에는 매번 한 건이 타임아웃 났는데, 수정 후에는 대기가 거의 없었습니다."
+
+## 추천 요청 관련 API 의 소유권 검증 및 관리자 권한 검증 누락 수정
+
+### 점검 결과 (2026-10-21)
+| 구분 | API | 수정 전 | 조치 |
+|---|---|---|---|
+| 관리자 확인 없음 | `DELETE /requests/admin/{id}` | 로그인 사용자 누구나 남의 요청 삭제 가능 | `@PreAuthorize("hasRole('ADMIN')")` → 일반 사용자 403 |
+| 소유자 확인 없음 | `POST /requests/{id}/tracks` | 남의 요청에 Spotify 곡 추가 가능 | 소유권 확인 → 404 |
+| | `POST /requests/{id}/tracks/{trackId}` | 남의 요청에 곡 추가 가능 | 소유권 확인 → 404 |
+| | `POST /requests/{id}/keywords/{keywordId}` | 남의 요청에 키워드 추가 가능 | 소유권 확인 → 404 |
+| | `DELETE /requests/{id}/keywords/{keywordId}` | 남의 요청의 키워드 삭제 가능 | 소유권 확인 → 404 |
+| 공개 범위 확인 없음(점검 중 발견) | `GET /playlists/{id}`, `GET /playlists/{id}/tracks` | 남의 **비공개** 플레이리스트와 곡 목록 조회 가능 | 이미 있던 `findAccessiblePlaylist`(공개 또는 본인) 사용 → 404 |
+| 의도한 동작(그대로) | `PUT /requests/{id}/tracks/{trackId}/rating` | 남의 요청 곡에도 별점 가능 | 피드에서 다른 사람의 추천에 별점을 주는 기능이라 유지. 별점은 사용자별로 저장되어 남의 별점을 덮어쓰지 않는다 |
+| 이번 범위 밖(그대로) | `POST /tracks`, `POST /keywords` | 로그인 사용자 누구나 공용 곡/키워드 추가 가능 | 초기 데이터 설정용 API 라 지금은 손대지 않음 |
+| 정상 | `PATCH`/`DELETE /requests/{id}`, 썸네일 업로드, `DELETE /requests/{id}/tracks/{trackId}`, 플레이리스트 수정·삭제·곡 추가/삭제·공개 설정, `/users/**`, DailyTrack, 좋아요(공개 플레이리스트만), 취향 프로필 | 소유자 확인 또는 `@PreAuthorize`, 토큰의 본인 userId 만 사용 | - |
+| 공개(설계상) | `GET /requests/{id}`, `/{id}/tracks`, `/{id}/keywords`, `/requests/feed`, 공개/인기 플레이리스트, 어제의 곡 | 피드 기능 | - |
+
+- 검증: `RequestAuthorizationTest` 12개. 운영 코드 수정만 잠시 되돌린 상태(stash)에서 같은 테스트를 돌리면 **"거절돼야 하는" 7개가 모두 실패**했다(남의 요청에 곡·키워드 추가 201, 키워드 삭제·관리자 삭제 204, 남의 비공개 플레이리스트 200). 수정 후에는 12개 모두 통과하고, 전체 테스트 47개도 통과한다.
+
+### 개념: 객체 수준 권한 검증 (IDOR 막기)
+- 로그인했는지(인증)와 별개로, "이 사용자가 **이 데이터**를 다룰 수 있는지"를 요청마다 확인하는 것이다. 이걸 빠뜨려서 URL 의 ID 만 바꾸면 남의 데이터에 접근되는 취약점을 IDOR(Insecure Direct Object Reference)라고 한다. OWASP API Security Top 10 의 1번(BOLA)이 같은 문제다.
+- 곡 추가(`RequestTrackService.addTrackByRequest`, `addSpotifyTrackToRequest`), 키워드 추가/삭제(`RequestKeywordService.addKeywordByRequest`, `deleteKeywordByRequestId`)가 `requestId` 만 받고 주인을 확인하지 않았다. 컨트롤러는 `@AuthenticationPrincipal` 로 로그인 사용자를 받아 놓고 서비스에 넘기지 않았다. 이제 모두 `userId` 를 받아 `RequestOwnershipService.getOwnedRequest(userId, requestId)` 로 확인한다. 플레이리스트 조회도 같은 문제여서 `PlaylistService.getAccessiblePlaylist(userId, playlistId)` 가 "공개이거나 본인 것"만 돌려주도록 바꿨다. 검증을 넣기 전에 내부 호출 경로도 확인했다. 추천 요청 생성(`RequestWriteService.saveRequest`)이 같은 `addTrackByRequest` 로 추천 곡을 저장하고 있어서, 여기서도 요청을 만든 사용자의 `userId` 를 넘기게 했다.
+- 적용하지 않으면, 요청 ID 는 1, 2, 3 처럼 순서대로 늘어나는 숫자라서 로그인한 아무 사용자가 ID 를 하나씩 바꿔 가며 남의 추천 플레이리스트에 이상한 곡을 넣거나 키워드를 지울 수 있다. 비공개로 설정한 플레이리스트도 ID 만 알면 그대로 보였다.
+- 대안: 컨트롤러에서 확인하기(API 마다 같은 코드를 반복하고, 서비스를 다른 곳에서 부르면 검증이 빠진다), `@PreAuthorize("@requestSecurity.isOwner(#requestId)")` 같은 SpEL 메서드 보안(선언적이라 깔끔하지만 확인 쿼리와 실제 조회가 따로 돌고, 기존 404 정책과 맞추기 어렵다), ID 를 UUID 로 바꾸기(추측은 어려워지지만 권한 검증을 대신하지는 못한다). 기존 `getActiveRequest`, `getOwnedPlaylist` 와 같은 "서비스에서 소유자 조건으로 조회" 방식을 골라 코드 스타일을 통일했다.
+- 면접 30초: "로그인만 확인하고 그 데이터의 주인인지는 확인하지 않아서, 요청 ID 만 바꾸면 남의 추천 플레이리스트에 곡이나 키워드를 넣고 뺄 수 있는 문제가 있었습니다. 소유권 확인을 서비스 계층의 공통 메서드 하나로 모으고, 수정 API 가 모두 그 메서드를 거치게 했습니다. 점검하다가 비공개 플레이리스트도 남이 조회할 수 있다는 걸 발견해서 같이 고쳤습니다. 수정 전 코드에서는 실패하고 수정 후에는 통과하는 테스트로 확인했습니다."
+
+### 개념: 권한이 없을 때 403 과 404 중 무엇을 줄까
+- 403 Forbidden 은 "그 데이터는 있지만 너는 권한이 없다", 404 Not Found 는 "그런 데이터는 없다"는 뜻이다. 권한이 없을 때 일부러 404 를 주면 데이터가 있는지 자체를 숨길 수 있다.
+- 남의 요청이나 비공개 플레이리스트에 접근하면 `RequestOwnershipService.getOwnedRequest`, `PlaylistService.getAccessiblePlaylist` 가 `NotFoundException`(404)을 던진다. 기존 `getActiveRequest`, `getOwnedPlaylist` 가 쓰던 정책을 그대로 유지했다. 반대로 관리자 API 는 "데이터의 주인"이 아니라 "역할"의 문제라서 403 을 쓴다. 관리자 API 가 있다는 사실은 숨길 이유가 없고, 프론트에서도 권한 문제임을 알 수 있어야 하기 때문이다.
+- 403 을 주면 공격자가 ID 를 바꿔 가며 "403 이 나오는 ID = 실제로 있는 남의 요청"이라는 정보를 얻는다. 비공개 플레이리스트라면 "이 ID 의 비공개 플레이리스트가 있다"는 사실 자체가 드러난다.
+- 대안으로 403 을 쓰면 원인이 분명해서 디버깅과 문의 대응이 쉽고, 프론트에서 "권한 없음" 안내를 따로 보여 줄 수 있다. 대신 존재 여부가 드러난다. GitHub 도 권한이 없는 비공개 저장소에는 404 를 주는 것처럼, 존재를 숨기는 쪽이 일반적이라 404 를 유지했다. 다만 404 의 진짜 이유가 로그에 남지 않으므로, 필요해지면 서버 로그를 따로 남기는 방법을 검토할 수 있다.
+- 면접 30초: "권한이 없는 남의 데이터에 접근하면 403 대신 404 를 주도록 했습니다. 403 을 주면 '이 ID 의 데이터가 있긴 하다'는 정보를 주게 돼서, ID 를 바꿔 가며 남의 데이터가 있는지 확인할 수 있기 때문입니다. 반면 관리자 전용 API 는 데이터가 아니라 역할의 문제라 403 을 그대로 썼습니다. 403 이 디버깅에는 더 편하다는 단점은 알고 있습니다."
+
+### 개념: `@PreAuthorize` 메서드 보안과 403 응답이 만들어지는 경로
+- `@EnableMethodSecurity` 를 켜면 `@PreAuthorize("hasRole('ADMIN')")` 가 붙은 메서드를 프록시가 감싸고, 호출 전에 현재 사용자의 권한(`ROLE_ADMIN`)을 확인한다. `hasRole('ADMIN')` 은 자동으로 `ROLE_` 를 붙여 비교한다.
+- `RequestService.deleteRequestAdmin()` 에 붙였다. `UserService.getUsers()` 와 같은 방식이다. `UserRole` 은 `USER`, `ADMIN` 두 값이고, `JwtAuthFilter` 가 토큰의 role 을 `"ROLE_" + role` 권한으로 넣어 주기 때문에 별도 설정 없이 동작한다. 403 응답이 실제로 어디서 만들어지는지 확인해 보니, `@PreAuthorize` 가 거부하면 `AuthorizationDeniedException` 이 컨트롤러 호출 안에서 발생하고, 시큐리티 필터까지 가기 전에 `GlobalExceptionHandler.handleAccessDenied`(`@RestControllerAdvice`)가 먼저 잡아 `{"error":"FORBIDDEN"}` 으로 응답한다. `RestAccessDeniedHandler`(`{"message":"권한이 없습니다."}`)는 `authorizeHttpRequests` 같은 URL 단위 규칙에서 거부될 때만 쓰인다. 테스트에서 응답 본문의 `$.error == "FORBIDDEN"` 까지 확인했다.
+- 적용하지 않으면 URL 에 `/admin` 이 들어 있어도 실제로는 아무 검사가 없어서, 로그인한 일반 사용자가 남의 요청을 지울 수 있었다(수정 전 테스트에서 204). 이름만 보고 "관리자만 쓰겠지"라고 생각하기 쉬운 부분이다.
+- 대안: `SecurityConfig` 에서 `.requestMatchers("/requests/admin/**").hasRole("ADMIN")` 로 URL 단위로 막기(한눈에 보이지만, 서비스를 다른 경로에서 부르면 막히지 않는다. 이때는 `RestAccessDeniedHandler` 가 응답한다), 서비스 안에서 `if (!isAdmin) throw` 로 직접 확인하기(반복되고 테스트하기 어렵다). 프로젝트가 이미 서비스 메서드에 `@PreAuthorize` 를 쓰고 있어서 같은 방식으로 맞췄다. 두 403 응답 본문의 형식이 서로 다르다는 점은 나중에 하나로 맞추면 좋겠다.
+- 면접 30초: "관리자 삭제 API 가 URL 에만 admin 이 붙어 있고 실제 권한 검사가 없어서, 일반 사용자도 남의 요청을 지울 수 있었습니다. 프로젝트에서 이미 쓰던 방식대로 서비스 메서드에 @PreAuthorize hasRole ADMIN 을 붙였습니다. 테스트하면서 이 403 은 시큐리티의 AccessDeniedHandler 가 아니라 전역 예외 처리기가 만든다는 걸 알게 됐고, 응답 본문까지 확인하는 테스트로 고정했습니다."
+
+### 개념: 공통 검증 로직을 별도 빈으로 분리해 순환 참조 피하기
+- 여러 서비스가 함께 쓰는 로직을, 서로를 의존하지 않는 작은 빈으로 빼서 의존 방향이 한쪽으로만 흐르게 하는 설계다. 스프링 부트 2.6부터는 빈 사이에 순환 참조가 있으면 기본 설정에서 앱이 뜨지 않는다.
+- 소유권 확인은 원래 `RequestService.getActiveRequest()` 에 있었다. 그런데 `RequestTrackService` 가 이걸 쓰려고 `RequestService` 를 주입받으면 `RequestService → RequestWriteService → RequestTrackService → RequestService` 로 순환이 생긴다. 그래서 리포지토리만 의존하는 `RequestOwnershipService` 를 만들고, `RequestService.getActiveRequest()` 도 이 빈을 호출하도록 바꿨다. 기존 호출부는 그대로 두고, 검증 로직은 한곳에만 있다.
+- 적용하지 않으면 앱이 뜰 때 순환 참조 오류(`BeanCurrentlyInCreationException`)로 실패한다. 이를 피하려고 서비스마다 같은 `findByIdAndUserIdAndDeletedFalse(...).orElseThrow(...)` 를 복사하면, 나중에 정책(예: 404 → 403, 관리자 예외)을 바꿀 때 한 곳을 빠뜨리기 쉽다.
+- 대안: `spring.main.allow-circular-references=true`(문제를 숨길 뿐이다), `@Lazy` 주입(동작은 하지만 의존 구조가 꼬인 채 남는다), 리포지토리에 default 메서드로 넣기(예외 정책이 리포지토리로 내려가 계층이 섞인다). 역할이 분명한 작은 빈이 가장 단순하다고 판단했다.
+- 면접 30초: "소유권 확인을 공통 메서드로 모으려는데, 기존 메서드가 있는 서비스를 그대로 가져다 쓰면 서비스끼리 순환 참조가 생겨서 앱이 뜨지 않는 구조였습니다. 그래서 리포지토리만 의존하는 작은 검증 전용 서비스를 만들고, 기존 메서드도 이걸 호출하게 했습니다. 의존 방향이 한쪽으로만 흐르고, 정책을 바꿀 때도 한 곳만 고치면 됩니다."
+
+### 개념: 권한 테스트는 실제 DB 와 보안 필터로, 그리고 "수정 전에는 실패하는지" 확인하기
+- 권한 테스트는 상태 코드만이 아니라 "거절된 요청이 데이터를 바꾸지 않았는지"까지 확인해야 의미가 있다. 그래서 서비스를 목으로 바꾸지 않고 실제 서비스와 DB 로 실행한다.
+- `RequestAuthorizationTest` 는 `@SpringBootTest` + `@AutoConfigureMockMvc` + H2 로 보안 필터와 `@PreAuthorize` 까지 실제로 거친다. 인증 사용자는 spring-security-test 의 `authentication(...)` 으로 `JwtAuthFilter` 와 같은 모양(`JwtPrincipal` + `ROLE_*`)을 넣었다. 다른 사용자의 호출은 404 와 함께 DB 에 RequestTrack, RequestKeyword, Track 이 생기지 않았는지(삭제는 그대로 남았는지) 확인하고, 본인 호출은 정상 동작을 확인한다. 운영 코드만 stash 로 되돌리고 같은 테스트를 돌려, "거절돼야 하는" 7개가 실제로 실패하는 것도 확인했다.
+- 기존 컨트롤러 테스트처럼 `@WebMvcTest` + 서비스 목으로 하면 목이 돌려주는 값만 확인하게 되어, 서비스 안의 권한 검증이 빠져도 테스트가 통과한다. 이번 버그가 바로 서비스 안에 검증이 없던 문제라 이 방식으로는 잡을 수 없다.
+- 대안: 서비스 단위 테스트에서 `NotFoundException` 만 확인하기(빠르지만 컨트롤러가 `principal.userId()` 를 제대로 넘기는지는 확인하지 못한다), 실제 JWT 를 발급해 헤더로 보내기(가장 실제와 같지만 테스트가 토큰 발급 코드에 묶인다). 필터 체인과 DB 는 모두 거치면서 토큰 발급과는 분리되는 `authentication(...)` 방식을 골랐다.
+- 면접 30초: "권한 테스트는 403 이나 404 가 나오는지뿐 아니라 데이터가 실제로 안 바뀌었는지도 봐야 한다고 생각해서, 서비스를 목으로 바꾸지 않고 H2 와 실제 보안 필터로 테스트했습니다. 그리고 수정 코드를 잠시 되돌린 상태에서 같은 테스트를 돌려 실제로 실패하는지도 확인했습니다. 수정 전에는 남의 요청에 곡을 넣는 요청이 201 로 성공했는데, 수정 후에는 404 가 나고 데이터도 그대로였습니다."

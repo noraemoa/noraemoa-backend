@@ -62,7 +62,8 @@ public class RequestWriteService {
         .build();
     requestRepository.saveAndFlush(request);
 
-    trackIds.forEach(trackId -> requestTrackService.addTrackByRequest(request.getId(), trackId));
+    trackIds.forEach(
+        trackId -> requestTrackService.addTrackByRequest(userId, request.getId(), trackId));
 
     eventPublisher.publishEvent(new RequestCreatedEvent(
         request.getId(), dto.getPrompt(), refineResult.getTitle(), rawKeywords));

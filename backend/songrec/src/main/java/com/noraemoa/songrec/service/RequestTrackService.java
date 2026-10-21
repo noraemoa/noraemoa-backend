@@ -33,11 +33,11 @@ public class RequestTrackService {
   private final UserRepository userRepository;
   private final RequestTrackRatingRepository requestTrackRatingRepository;
   private final TrackLikeRepository trackLikeRepository;
+  private final RequestOwnershipService requestOwnershipService;
 
   @Transactional
   public RequestTrack getActiveRequestTrack(Long userId, Long requestId, Long trackId) {
-    requestRepository.findByIdAndUserIdAndDeletedFalse(requestId, userId)
-        .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
+    requestOwnershipService.getOwnedRequest(userId, requestId);
     return requestTrackRepository.findByRequest_IdAndTrack_Id(requestId, trackId)
         .orElseThrow(() -> new NotFoundException("RequestTrack not found"));
   }
@@ -65,10 +65,10 @@ public class RequestTrackService {
     return requestTrackRepository.countActiveTracksByRequestIds(requestIds);
   }
 
+  // 본인 요청에만 곡을 추가할 수 있다. 추천 요청 생성(RequestWriteService.saveRequest)도 이 경로를 쓴다.
   @Transactional
-  public RequestTrack addTrackByRequest(Long requestId, Long trackId) {
-    Request request = requestRepository.findByIdAndDeletedFalse(requestId)
-        .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
+  public RequestTrack addTrackByRequest(Long userId, Long requestId, Long trackId) {
+    Request request = requestOwnershipService.getOwnedRequest(userId, requestId);
     Track track = trackService.getTrack(trackId);
 
     return requestTrackRepository.findByRequest_IdAndTrack_Id(requestId, trackId).map(existing -> {
@@ -81,9 +81,9 @@ public class RequestTrackService {
   }
 
   @Transactional
-  public RequestTrack addSpotifyTrackToRequest(Long requestId, TrackCreateRequestDto dto) {
-    Request request = requestRepository.findByIdAndDeletedFalse(requestId)
-        .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
+  public RequestTrack addSpotifyTrackToRequest(Long userId, Long requestId,
+      TrackCreateRequestDto dto) {
+    Request request = requestOwnershipService.getOwnedRequest(userId, requestId);
     Track track = trackService.findOrCreateTrack(dto);
     return requestTrackRepository.findByRequest_IdAndTrack_Id(requestId, track.getId())
         .map(existing -> {
@@ -142,8 +142,7 @@ public class RequestTrackService {
 
   @Transactional
   public void deleteTrack(Long userId, Long requestId, Long trackId) {
-    requestRepository.findByIdAndUserIdAndDeletedFalse(requestId, userId)
-        .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
+    requestOwnershipService.getOwnedRequest(userId, requestId);
 
     RequestTrack rt = requestTrackRepository.findByRequest_IdAndTrack_Id(requestId, trackId)
         .orElseThrow(() -> new NotFoundException("RequestTrack not found"));

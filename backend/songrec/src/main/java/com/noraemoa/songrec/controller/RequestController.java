@@ -28,6 +28,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -40,6 +41,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @Validated
@@ -50,7 +52,6 @@ public class RequestController {
   private final RequestTrackService requestTrackService;
   private final RequestKeywordService requestKeywordService;
   private final RequestFeedService requestFeedService;
-  private final KeywordService keywordService;
   private final TrackService trackService;
 
   // requests
@@ -125,12 +126,15 @@ public class RequestController {
       @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId,
       @RequestBody @Valid TrackCreateRequestDto dto) {
-    RequestTrack rt = requestTrackService.addSpotifyTrackToRequest(requestId, dto);
+    RequestTrack rt = requestTrackService.addSpotifyTrackToRequest(principal.userId(), requestId,
+        dto);
 
+    // 곡 벡터 색인(OpenAI + Qdrant)은 실패해도 곡 추가 자체는 성공으로 처리한다.
     try {
       trackService.ensureTrackIndexed(rt.getTrack(), dto);
     } catch (Exception e) {
-      e.printStackTrace();
+      log.warn("Track indexing failed. requestId={}, trackId={}", requestId,
+          rt.getTrack().getId(), e);
     }
 
     return ResponseEntity.status(HttpStatus.CREATED).body(RequestTrackResponseDto.from(rt));
@@ -143,7 +147,8 @@ public class RequestController {
       @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId,
       @PathVariable @NotNull @Positive Long trackId) {
-    RequestTrack rt = requestTrackService.addTrackByRequest(requestId, trackId);
+    RequestTrack rt = requestTrackService.addTrackByRequest(principal.userId(), requestId,
+        trackId);
     return ResponseEntity.status(HttpStatus.CREATED).body(RequestTrackResponseDto.from(rt));
   }
 
@@ -183,10 +188,8 @@ public class RequestController {
       @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId,
       @PathVariable @NotNull @Positive Long keywordId) {
-    Request request = requestService.getRequestFeed(requestId);
-    Keyword keyword = keywordService.getKeyword(keywordId);
-    RequestKeyword rk = requestKeywordService.addKeywordByRequest(request,
-        keyword);
+    RequestKeyword rk = requestKeywordService.addKeywordByRequest(principal.userId(), requestId,
+        keywordId);
     // 키워드를 추가했을 때 키워드와 연결된 track을 해당 request track에 추가
 //        List<Track> tracks = keywordTrackService.getTracksByKeyword(keywordId);
 //
@@ -205,9 +208,10 @@ public class RequestController {
 
   @DeleteMapping("/{requestId}/keywords/{keywordId}")
   public ResponseEntity<Void> deleteKeywordByRequest(
+      @AuthenticationPrincipal JwtPrincipal principal,
       @PathVariable @NotNull @Positive Long requestId,
       @PathVariable @NotNull @Positive Long keywordId) {
-    requestKeywordService.deleteKeywordByRequestId(requestId, keywordId);
+    requestKeywordService.deleteKeywordByRequestId(principal.userId(), requestId, keywordId);
     return ResponseEntity.noContent().build();
   }
 

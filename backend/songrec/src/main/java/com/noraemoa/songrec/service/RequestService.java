@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,6 +40,7 @@ public class RequestService {
   private final FileStorageService fileStorageService;
   private final TrackSemanticSearchService trackSemanticSearchService;
   private final RequestWriteService requestWriteService;
+  private final RequestOwnershipService requestOwnershipService;
 
   @Transactional
   public Request updateRequest(RequestCreateRequestDto requestDto, Long userId, Long requestId) {
@@ -47,10 +49,9 @@ public class RequestService {
     return request;
   }
 
-  @Transactional(readOnly = true)
+  // 소유권 확인은 RequestOwnershipService 한곳에서 한다(소유자가 아니면 404).
   public Request getActiveRequest(Long userId, Long requestId) {
-    return requestRepository.findByIdAndUserIdAndDeletedFalse(requestId, userId)
-        .orElseThrow(() -> new NotFoundException("해당 요청을 찾을 수 없습니다."));
+    return requestOwnershipService.getOwnedRequest(userId, requestId);
   }
 
   @Transactional(readOnly = true)
@@ -76,7 +77,8 @@ public class RequestService {
     request.setDeleted(true);
   }
 
-  //Admin 사용자만 모든 request를 삭제할 수 있음.
+  // 관리자만 다른 사용자의 요청을 삭제할 수 있다. 일반 사용자가 호출하면 403.
+  @PreAuthorize("hasRole('ADMIN')")
   @Transactional
   public void deleteRequestAdmin(Long requestId) {
     Request request = getRequestFeed(requestId);

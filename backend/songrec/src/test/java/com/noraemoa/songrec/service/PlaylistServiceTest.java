@@ -145,7 +145,7 @@ public class PlaylistServiceTest {
     Long userId = 1L;
     User userRef = UserFixture.userRef(userId);
     Playlist playlist = Playlist.builder().id(playlistId).user(userRef).deleted(false).build();
-    when(playlistRepository.findByIdAndDeletedFalse(playlistId)).thenReturn(Optional.of(playlist));
+    when(playlistRepository.findAccessiblePlaylist(playlistId, userId)).thenReturn(Optional.of(playlist));
     when(playlistLikeRepository.existsByUser_IdAndPlaylist_Id(userId, playlistId)).thenReturn(true);
     PlaylistWithLikedResponseDto response = playlistService.getAccessiblePlaylistDetails(userId,
         playlistId);
@@ -160,7 +160,7 @@ public class PlaylistServiceTest {
 User userRef = UserFixture.userRef(userId);
     Playlist playlist = Playlist.builder().id(playlistId).user(userRef).deleted(false).build();
 
-    when(playlistRepository.findByIdAndDeletedFalse(playlistId))
+    when(playlistRepository.findAccessiblePlaylist(playlistId, userId))
         .thenReturn(Optional.of(playlist));
     when(playlistLikeRepository.existsByUser_IdAndPlaylist_Id(userId, playlistId))
         .thenReturn(false);
@@ -177,7 +177,7 @@ User userRef = UserFixture.userRef(userId);
     Long playlistId = 1L;
     Long userId = 1L;
 
-    when(playlistRepository.findByIdAndDeletedFalse(playlistId)).thenReturn(Optional.empty());
+    when(playlistRepository.findAccessiblePlaylist(playlistId, userId)).thenReturn(Optional.empty());
 
     assertThatThrownBy(()-> playlistService.getAccessiblePlaylistDetails(userId, playlistId))
         .isInstanceOf(NotFoundException.class)

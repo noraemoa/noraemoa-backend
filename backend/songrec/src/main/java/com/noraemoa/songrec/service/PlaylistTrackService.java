@@ -31,14 +31,16 @@ public class PlaylistTrackService {
   private final TrackLikeRepository trackLikeRepository;
 
   @Transactional
-  public PlaylistTrack getActivePlaylistTrack(Long playlistId, Long trackId) {
-    playlistService.getAccessiblePlaylist(playlistId);
+  public PlaylistTrack getActivePlaylistTrack(Long userId, Long playlistId, Long trackId) {
+    playlistService.getAccessiblePlaylist(userId, playlistId);
     return playlistTrackRepository.findByPlaylist_IdAndTrack_Id(playlistId, trackId)
         .orElseThrow(() -> new NotFoundException("PlaylistTrack not found"));
   }
 
   @Transactional(readOnly = true)
   public List<TrackResponseDto> getTracksByPlaylist(Long userId, Long playlistId) {
+    // 비공개인 남의 플레이리스트의 곡 목록은 볼 수 없다(404).
+    playlistService.getAccessiblePlaylist(userId, playlistId);
     List<Track> tracks = playlistTrackRepository.findActiveTracksByPlaylistId(playlistId);
     return getTracks(tracks,userId);
   }

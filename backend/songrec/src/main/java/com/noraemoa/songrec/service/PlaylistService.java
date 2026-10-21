@@ -72,15 +72,16 @@ public class PlaylistService {
     return playlistRepository.save(playlist);
   }
 
+  // 공개 플레이리스트이거나 본인 플레이리스트만 조회할 수 있다. 비공개인 남의 플레이리스트는 404.
   @Transactional(readOnly = true)
-  public Playlist getAccessiblePlaylist(Long playlistId) {
-    return playlistRepository.findByIdAndDeletedFalse(playlistId)
+  public Playlist getAccessiblePlaylist(Long userId, Long playlistId) {
+    return playlistRepository.findAccessiblePlaylist(playlistId, userId)
         .orElseThrow(() -> new NotFoundException("해당 플레이리스트를 찾을 수 없습니다."));
   }
 
   @Transactional(readOnly = true)
   public PlaylistWithLikedResponseDto getAccessiblePlaylistDetails(Long userId,Long playlistId) {
-    Playlist playlist = getAccessiblePlaylist(playlistId);
+    Playlist playlist = getAccessiblePlaylist(userId, playlistId);
     boolean liked = playlistLikeRepository.existsByUser_IdAndPlaylist_Id(userId, playlistId);
     return PlaylistWithLikedResponseDto.from(playlist,liked);
   }
