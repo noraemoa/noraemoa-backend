@@ -1,0 +1,10 @@
+# 로컬 개발용 설정 예시. 비밀번호는 파일에 적지 않고 .env 의 DB_PASSWORD 로 넣는다.
+spring.datasource.url=
+spring.datasource.username=
+spring.datasource.password=${DB_PASSWORD}
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
+
+# POST /requests 커넥션 점유 시간 측정 (PERF_REQUEST_CREATE 로그). 운영(prod)에서는 끈다.
+perf.connection-tracking.enabled=true
